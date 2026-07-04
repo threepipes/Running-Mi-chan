@@ -14,6 +14,11 @@ import { STAGES } from '../game/stages';
 import { recordClear } from '../game/Progress';
 import { createImageButton } from '../ui/button';
 
+// 進捗バーのレイアウト(原作準拠: bar_base 300x50, 内側パディング6)
+const BAR_W = 300;
+const BAR_PAD = 6;
+const BAR_CENTER_Y = 60;
+
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private worldWidth = 0;
@@ -35,6 +40,8 @@ export class GameScene extends Phaser.Scene {
   private stageIndex = 0;
   private usedGate = false;
   private specs: EntitySpec[] = [];
+  private progressFill!: Phaser.GameObjects.Rectangle;
+  private progressPin!: Phaser.GameObjects.Image;
 
   constructor() {
     super('Game');
@@ -117,6 +124,8 @@ export class GameScene extends Phaser.Scene {
       depth: 50,
       onClick: () => this.scene.start('StageSelect'),
     });
+
+    this.createProgressBar();
 
     // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
     if (import.meta.env.DEV) {
@@ -206,7 +215,37 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 画面上部に固定表示するステージ進捗バー(基盤 + 赤い塗り + 現在位置ピン)
+  private createProgressBar(): void {
+    const cx = GAME_WIDTH / 2;
+    const innerLeft = cx - BAR_W / 2 + BAR_PAD;
+    const innerWidth = BAR_W - BAR_PAD * 2;
+    // 赤い塗り(左端起点で scaleX により伸縮)
+    this.progressFill = this.add
+      .rectangle(innerLeft, BAR_CENTER_Y, innerWidth, 12, 0xff1111)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setDepth(41);
+    this.progressFill.scaleX = 0;
+    // 基盤トラック
+    this.add.image(cx, BAR_CENTER_Y, 'bar_base').setScrollFactor(0).setDepth(40);
+    // 現在位置ピン
+    this.progressPin = this.add
+      .image(innerLeft, BAR_CENTER_Y - 15, 'bar_progress')
+      .setScrollFactor(0)
+      .setDepth(42);
+  }
+
+  private updateProgressBar(): void {
+    const innerLeft = GAME_WIDTH / 2 - BAR_W / 2 + BAR_PAD;
+    const innerWidth = BAR_W - BAR_PAD * 2;
+    const progress = Phaser.Math.Clamp(this.player.x / this.goalX, 0, 1);
+    this.progressFill.scaleX = progress;
+    this.progressPin.x = innerLeft + progress * innerWidth;
+  }
+
   update(): void {
+    this.updateProgressBar();
     if (this.isEnded) return;
 
     this.player.setVelocityX(RUN_SPEED);

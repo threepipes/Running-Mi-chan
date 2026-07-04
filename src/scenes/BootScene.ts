@@ -22,6 +22,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('button_large_pressed', 'assets/button_large_pressed.png');
     this.load.image('button_pause', 'assets/button_pause.png');
     this.load.image('button_pause_pressed', 'assets/button_pause_pressed.png');
+    this.load.image('bar_base', 'assets/bar_base.png');
+    this.load.image('bar_progress', 'assets/bar_progress.png');
     this.load.spritesheet('player', 'assets/player.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('kuri', 'assets/kuri.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('spring', 'assets/jump.png', { frameWidth: 32, frameHeight: 32 });
