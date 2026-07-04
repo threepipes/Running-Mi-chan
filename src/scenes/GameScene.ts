@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
-import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, RUN_SPEED, JUMP_VELOCITY } from '../config';
+import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, RUN_SPEED, JUMP_VELOCITY, ENEMY_SPEED } from '../config';
 import { parseMap } from '../game/loaders/MapLoader';
+import { parseEvents } from '../game/loaders/EventLoader';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private worldWidth = 0;
   private worldHeight = 0;
   private player!: Phaser.Physics.Arcade.Sprite;
+  private enemies!: Phaser.Physics.Arcade.Group;
   private jumpKeys!: Phaser.Input.Keyboard.Key[];
   private pointerJump = false;
   private forceJump = false;
@@ -62,6 +64,27 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
+    // イベントからエンティティ生成
+    const specs = parseEvents(this.cache.text.get('events') as string);
+    this.enemies = this.physics.add.group();
+
+    for (const s of specs) {
+      // .evt のタイル座標は左上基準。Phaser のスプライトはデフォルト origin=0.5(中心)なので
+      // タイル中心に配置してズレを防ぐ
+      const px = s.tileX * TILE_SIZE + TILE_SIZE / 2;
+      const py = s.tileY * TILE_SIZE + TILE_SIZE / 2;
+      if (s.type === 'ENEMY') {
+        const e = this.enemies.create(px, py, 'kuri', 0) as Phaser.Physics.Arcade.Sprite;
+        e.setVelocityX(-ENEMY_SPEED);
+        e.anims.play('kuri-walk', true);
+      }
+    }
+
+    this.physics.add.collider(this.enemies, this.layer);
+    this.physics.add.overlap(this.player, this.enemies, (_p, e) => {
+      this.onEnemyOverlap(e as Phaser.Physics.Arcade.Sprite);
+    });
+
     // 入力(キーボード + タップ)
     this.jumpKeys = [
       this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
@@ -84,6 +107,12 @@ export class GameScene extends Phaser.Scene {
         key: 'jump',
         frames: [{ key: 'player', frame: 4 }],
         frameRate: 1,
+      });
+      this.anims.create({
+        key: 'kuri-walk',
+        frames: this.anims.generateFrameNumbers('kuri', { frames: [0, 1] }),
+        frameRate: 6,
+        repeat: -1,
       });
     }
   }
@@ -122,6 +151,18 @@ export class GameScene extends Phaser.Scene {
     const pointer = this.pointerJump;
     this.pointerJump = false;
     return keyJust || pointer;
+  }
+
+  private onEnemyOverlap(enemy: Phaser.Physics.Arcade.Sprite): void {
+    if (this.isEnded || !enemy.active) return;
+    // 元コード準拠: プレイヤーが敵より上にいれば踏みつけ
+    if (this.player.y < enemy.y) {
+      enemy.destroy();
+      this.forceJump = true;
+      this.player.setVelocityY(-JUMP_VELOCITY);
+    } else {
+      this.die();
+    }
   }
 
   private die(): void {
