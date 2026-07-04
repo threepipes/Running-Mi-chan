@@ -64,7 +64,7 @@ RunActionRenew/
 ```bash
 cd /Users/tsutsumi/hobby/RunActionRenew
 npm init -y
-npm install phaser
+npm install phaser@^3.90.0   # Phaser 3系に固定(4系はAPIが異なるため不可)
 npm install -D typescript vite vitest
 ```
 
