@@ -9,7 +9,9 @@ import {
   SPRING_VELOCITY,
 } from '../config';
 import { parseMap } from '../game/loaders/MapLoader';
-import { parseEvents } from '../game/loaders/EventLoader';
+import { parseEvents, type EntitySpec } from '../game/loaders/EventLoader';
+import { STAGES } from '../game/stages';
+import { recordClear } from '../game/Progress';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -29,15 +31,22 @@ export class GameScene extends Phaser.Scene {
   private checkpointX = TILE_SIZE * 2;
   private checkpointY = 0;
   private goalX = 0;
+  private stageIndex = 0;
+  private usedGate = false;
 
   constructor() {
     super('Game');
+  }
+
+  init(data?: { stageIndex?: number }): void {
+    this.stageIndex = data?.stageIndex ?? 0;
   }
 
   create(): void {
     this.isEnded = false;
     this.pointerJump = false;
     this.forceJump = false;
+    this.usedGate = false;
 
     // 背景(パララックス)
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
@@ -48,7 +57,8 @@ export class GameScene extends Phaser.Scene {
       .setDepth(-9);
 
     // タイルマップ
-    const parsed = parseMap(this.cache.binary.get('mapbin') as ArrayBuffer);
+    const stage = STAGES[this.stageIndex];
+    const parsed = parseMap(this.cache.binary.get(stage.mapKey) as ArrayBuffer);
     this.worldWidth = parsed.width * TILE_SIZE;
     this.worldHeight = parsed.height * TILE_SIZE;
 
@@ -80,7 +90,39 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
     // イベントからエンティティ生成
-    const specs = parseEvents(this.cache.text.get('events') as string);
+    const specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
+    this.spawnEntities(specs);
+    this.wireOverlaps();
+
+    // 入力(キーボード + タップ)
+    this.jumpKeys = [
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+    ];
+    this.input.on('pointerdown', () => {
+      this.pointerJump = true;
+    });
+
+    // ゲーム中: 選択画面へ戻る
+    const backBtn = this.add
+      .text(16, 16, '≪ 選択', {
+        color: '#ffffff',
+        fontSize: '22px',
+        backgroundColor: '#00000080',
+        padding: { x: 10, y: 6 },
+      })
+      .setScrollFactor(0)
+      .setDepth(50)
+      .setInteractive({ useHandCursor: true });
+    backBtn.on('pointerup', () => this.scene.start('StageSelect'));
+
+    // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
+    if (import.meta.env.DEV) {
+      (window as unknown as { __scene?: GameScene }).__scene = this;
+    }
+  }
+
+  private spawnEntities(specs: EntitySpec[]): void {
     this.enemies = this.physics.add.group();
     this.hazards = this.physics.add.staticGroup();
     this.springs = this.physics.add.staticGroup();
@@ -103,7 +145,9 @@ export class GameScene extends Phaser.Scene {
         this.gates.create(px, py, 'gate');
       }
     }
+  }
 
+  private wireOverlaps(): void {
     this.physics.add.collider(this.enemies, this.layer);
     this.physics.add.overlap(this.player, this.enemies, (_p, e) => {
       this.onEnemyOverlap(e as Phaser.Physics.Arcade.Sprite);
@@ -118,23 +162,10 @@ export class GameScene extends Phaser.Scene {
     });
     this.physics.add.overlap(this.player, this.gates, (_p, g) => {
       const gate = g as Phaser.Physics.Arcade.Sprite;
+      this.usedGate = true;
       this.checkpointX = gate.x;
       this.checkpointY = gate.y - TILE_SIZE * 2;
     });
-
-    // 入力(キーボード + タップ)
-    this.jumpKeys = [
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-    ];
-    this.input.on('pointerdown', () => {
-      this.pointerJump = true;
-    });
-
-    // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
-    if (import.meta.env.DEV) {
-      (window as unknown as { __scene?: GameScene }).__scene = this;
-    }
   }
 
   private createAnims(): void {
@@ -219,25 +250,35 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.player.setVelocity(0, 0);
-    this.showOverlay('gameclear');
+    recordClear(this.stageIndex, !this.usedGate);
+    this.showResult();
   }
 
-  private showOverlay(textureKey: string): void {
-    const img = this.add
-      .image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+  private showResult(): void {
+    const cx = this.cameras.main.centerX;
+    const cy = this.cameras.main.centerY;
+    this.add
+      .image(cx, cy - 80, 'gameclear')
       .setScrollFactor(0)
       .setDepth(100)
       .setScale(0.6);
-    this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY + 180, 'タップでリトライ', {
-        color: '#ffffff',
-        fontSize: '28px',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(100);
-    void img;
-    this.input.once('pointerdown', () => this.scene.restart());
-    this.input.keyboard!.once('keydown', () => this.scene.restart());
+
+    const makeButton = (dy: number, label: string, onClick: () => void) => {
+      this.add
+        .text(cx, cy + dy, label, {
+          color: '#ffffff',
+          fontSize: '30px',
+          backgroundColor: '#333333',
+          padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(100)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerup', onClick);
+    };
+
+    makeButton(120, 'リトライ', () => this.scene.restart({ stageIndex: this.stageIndex }));
+    makeButton(190, 'ステージ選択へ', () => this.scene.start('StageSelect'));
   }
 }
