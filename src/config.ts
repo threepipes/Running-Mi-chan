@@ -12,3 +12,8 @@ export const JUMP_VELOCITY = 620;
 export const GRAVITY_Y = 1800;
 export const SPRING_VELOCITY = 980;
 export const ENEMY_SPEED = 100;
+
+// 敵踏み/バネの跳ね上げ時、接触前後の短い猶予(ms)内にタップしていれば
+// 跳躍速度に BOUNCE_BOOST を上乗せする(タイミングジャンプ)。空中の追加ジャンプは無し。
+export const BOUNCE_BOOST = 200;
+export const BOUNCE_BOOST_WINDOW_MS = 150;
