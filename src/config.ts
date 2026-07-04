@@ -12,5 +12,3 @@ export const JUMP_VELOCITY = 620;
 export const GRAVITY_Y = 1800;
 export const SPRING_VELOCITY = 980;
 export const ENEMY_SPEED = 100;
-
-export const LEVEL = 'easy01';

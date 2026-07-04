@@ -10,6 +10,8 @@ import {
 } from '../config';
 import { parseMap } from '../game/loaders/MapLoader';
 import { parseEvents, type EntitySpec } from '../game/loaders/EventLoader';
+import { STAGES } from '../game/stages';
+import { recordClear } from '../game/Progress';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -29,15 +31,22 @@ export class GameScene extends Phaser.Scene {
   private checkpointX = TILE_SIZE * 2;
   private checkpointY = 0;
   private goalX = 0;
+  private stageIndex = 0;
+  private usedGate = false;
 
   constructor() {
     super('Game');
+  }
+
+  init(data?: { stageIndex?: number }): void {
+    this.stageIndex = data?.stageIndex ?? 0;
   }
 
   create(): void {
     this.isEnded = false;
     this.pointerJump = false;
     this.forceJump = false;
+    this.usedGate = false;
 
     // 背景(パララックス)
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
@@ -48,7 +57,8 @@ export class GameScene extends Phaser.Scene {
       .setDepth(-9);
 
     // タイルマップ
-    const parsed = parseMap(this.cache.binary.get('mapbin') as ArrayBuffer);
+    const stage = STAGES[this.stageIndex];
+    const parsed = parseMap(this.cache.binary.get(stage.mapKey) as ArrayBuffer);
     this.worldWidth = parsed.width * TILE_SIZE;
     this.worldHeight = parsed.height * TILE_SIZE;
 
@@ -80,7 +90,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
     // イベントからエンティティ生成
-    const specs = parseEvents(this.cache.text.get('events') as string);
+    const specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
     this.spawnEntities(specs);
     this.wireOverlaps();
 
@@ -139,6 +149,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.physics.add.overlap(this.player, this.gates, (_p, g) => {
       const gate = g as Phaser.Physics.Arcade.Sprite;
+      this.usedGate = true;
       this.checkpointX = gate.x;
       this.checkpointY = gate.y - TILE_SIZE * 2;
     });
@@ -226,6 +237,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.player.setVelocity(0, 0);
+    recordClear(this.stageIndex, !this.usedGate);
     this.showOverlay('gameclear');
   }
 
@@ -244,7 +256,7 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
     void img;
-    this.input.once('pointerdown', () => this.scene.restart());
-    this.input.keyboard!.once('keydown', () => this.scene.restart());
+    this.input.once('pointerdown', () => this.scene.restart({ stageIndex: this.stageIndex }));
+    this.input.keyboard!.once('keydown', () => this.scene.restart({ stageIndex: this.stageIndex }));
   }
 }
