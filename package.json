@@ -16,7 +16,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "phaser": "^4.2.0"
+    "phaser": "^3.90.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
