@@ -25,9 +25,14 @@ export class PlayerController {
       scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
     ];
-    scene.input.on('pointerdown', () => {
-      this.pointerJumpQueued = true;
-    });
+    scene.input.on(
+      'pointerdown',
+      (_pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
+        // UI(ポーズボタン等)上のタップはジャンプにしない。空き領域のタップのみジャンプ
+        if (currentlyOver.length > 0) return;
+        this.pointerJumpQueued = true;
+      },
+    );
   }
 
   get x(): number {
