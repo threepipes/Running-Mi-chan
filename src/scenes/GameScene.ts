@@ -39,7 +39,9 @@ export class GameScene extends Phaser.Scene {
   private goalX = 0;
   private stageIndex = 0;
   private usedGate = false;
-  private specs: EntitySpec[] = [];
+  private resumeX?: number;
+  private resumeY?: number;
+  private resumeUsedGate = false;
   private progressFill!: Phaser.GameObjects.Rectangle;
   private progressPin!: Phaser.GameObjects.Image;
 
@@ -47,15 +49,22 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
-  init(data?: { stageIndex?: number }): void {
+  init(data?: {
+    stageIndex?: number;
+    resumeX?: number;
+    resumeY?: number;
+    usedGate?: boolean;
+  }): void {
     this.stageIndex = data?.stageIndex ?? 0;
+    this.resumeX = data?.resumeX;
+    this.resumeY = data?.resumeY;
+    this.resumeUsedGate = data?.usedGate ?? false;
   }
 
   create(): void {
     this.isEnded = false;
     this.pointerJump = false;
     this.forceJump = false;
-    this.usedGate = false;
 
     // 背景(パララックス)
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
@@ -83,15 +92,18 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
     this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
-    // プレイヤー初期位置(スタート地点のやや上空)
+    // プレイヤー初期位置。リトライ時は resume(チェックポイント)から、初回はスタートから
     this.startY = this.worldHeight - TILE_SIZE * 4;
-    this.checkpointX = this.startX;
-    this.checkpointY = this.startY;
+    const spawnX = this.resumeX ?? this.startX;
+    const spawnY = this.resumeY ?? this.startY;
+    this.checkpointX = spawnX;
+    this.checkpointY = spawnY;
+    this.usedGate = this.resumeUsedGate;
     this.goalX = this.worldWidth - GAME_WIDTH;
 
     this.createAnims();
 
-    this.player = this.physics.add.sprite(this.startX, this.startY, 'player', 0);
+    this.player = this.physics.add.sprite(spawnX, spawnY, 'player', 0);
     this.player.setCollideWorldBounds(false);
     this.physics.add.collider(this.player, this.layer);
 
@@ -100,8 +112,8 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
     // イベントからエンティティ生成
-    this.specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
-    this.spawnEntities(this.specs);
+    const specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
+    this.spawnEntities(specs);
     this.wireOverlaps();
 
     // 入力(キーボード + タップ)
@@ -162,14 +174,6 @@ export class GameScene extends Phaser.Scene {
     const e = this.enemies.create(px, py, 'kuri', 0) as Phaser.Physics.Arcade.Sprite;
     e.setVelocityX(-ENEMY_SPEED);
     e.anims.play('kuri-walk', true);
-  }
-
-  // 死亡時に敵を初期配置へ復元する(踏んで消えた敵・移動した敵を元に戻す)
-  private respawnEnemies(): void {
-    this.enemies.clear(true, true);
-    for (const s of this.specs) {
-      if (s.type === 'ENEMY') this.spawnEnemy(s.tileX, s.tileY);
-    }
   }
 
   private wireOverlaps(): void {
@@ -295,11 +299,61 @@ export class GameScene extends Phaser.Scene {
 
   private die(): void {
     if (this.isEnded) return;
-    this.player.setPosition(this.checkpointX, this.checkpointY);
+    this.isEnded = true;
     this.player.setVelocity(0, 0);
-    this.forceJump = false;
-    this.respawnEnemies();
-    this.cameras.main.flash(200, 255, 0, 0);
+    this.showGameOver();
+  }
+
+  // 暗転フェード → gameover.png + リトライ/ステージ選択 ボタン
+  private showGameOver(): void {
+    const cam = this.cameras.main;
+    const black = this.add
+      .rectangle(cam.centerX, cam.centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000)
+      .setScrollFactor(0)
+      .setDepth(90)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: black,
+      alpha: 0.7,
+      duration: 300,
+      onComplete: () => this.showGameOverUI(),
+    });
+  }
+
+  private showGameOverUI(): void {
+    const cx = this.cameras.main.centerX;
+    const cy = this.cameras.main.centerY;
+    this.add.image(cx, cy - 80, 'gameover').setScrollFactor(0).setDepth(100).setScale(0.7);
+
+    createImageButton({
+      scene: this,
+      x: cx,
+      y: cy + 130,
+      texture: 'button_large',
+      pressedTexture: 'button_large_pressed',
+      label: 'リトライ',
+      scrollFactor: 0,
+      depth: 100,
+      // チェックポイント(通過ゲート/スタート)から再開
+      onClick: () =>
+        this.scene.restart({
+          stageIndex: this.stageIndex,
+          resumeX: this.checkpointX,
+          resumeY: this.checkpointY,
+          usedGate: this.usedGate,
+        }),
+    });
+    createImageButton({
+      scene: this,
+      x: cx,
+      y: cy + 235,
+      texture: 'button_large',
+      pressedTexture: 'button_large_pressed',
+      label: 'ステージ選択へ',
+      scrollFactor: 0,
+      depth: 100,
+      onClick: () => this.scene.start('StageSelect'),
+    });
   }
 
   private clear(): void {
