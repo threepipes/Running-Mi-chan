@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { STAGES } from '../game/stages';
 import { loadProgress } from '../game/Progress';
+import { createImageButton } from '../ui/button';
 
 export class StageSelectScene extends Phaser.Scene {
   constructor() {
@@ -16,28 +17,35 @@ export class StageSelectScene extends Phaser.Scene {
     const progress = loadProgress();
     STAGES.forEach((stage, i) => {
       const y = 280 + i * 140;
-      const btn = this.add
-        .image(GAME_WIDTH / 2, y, 'button')
-        .setInteractive({ useHandCursor: true });
-      this.add
-        .text(GAME_WIDTH / 2, y, stage.name, { color: '#000000', fontSize: '24px' })
-        .setOrigin(0.5);
+      createImageButton({
+        scene: this,
+        x: GAME_WIDTH / 2,
+        y,
+        texture: 'button_large',
+        pressedTexture: 'button_large_pressed',
+        label: stage.name,
+        fontSize: '24px',
+        onClick: () => this.scene.start('Game', { stageIndex: stage.index }),
+      });
       if (progress[i].cleared) {
+        // ボタン右端にクリアスタンプを重ねる(depth を上げて前面へ)
         this.add
-          .image(GAME_WIDTH / 2 + 130, y, progress[i].gateless ? 'stamp' : 'stamp_sub')
+          .image(GAME_WIDTH / 2 + 150, y, progress[i].gateless ? 'stamp' : 'stamp_sub')
           .setOrigin(0.5)
-          .setScale(0.6);
+          .setScale(0.6)
+          .setDepth(1);
       }
-      btn.on('pointerup', () => this.scene.start('Game', { stageIndex: stage.index }));
     });
 
-    const back = this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 100, '← タイトルへ', {
-        color: '#ffffff',
-        fontSize: '26px',
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    back.on('pointerup', () => this.scene.start('Title'));
+    createImageButton({
+      scene: this,
+      x: GAME_WIDTH / 2,
+      y: GAME_HEIGHT - 90,
+      texture: 'button_large',
+      pressedTexture: 'button_large_pressed',
+      label: 'タイトルへ',
+      fontSize: '26px',
+      onClick: () => this.scene.start('Title'),
+    });
   }
 }
