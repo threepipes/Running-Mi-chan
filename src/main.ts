@@ -5,7 +5,7 @@ import { TitleScene } from './scenes/TitleScene';
 import { StageSelectScene } from './scenes/StageSelectScene';
 import { GameScene } from './scenes/GameScene';
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   width: GAME_WIDTH,
@@ -20,3 +20,8 @@ new Phaser.Game({
   },
   scene: [BootScene, TitleScene, StageSelectScene, GameScene],
 });
+
+// 開発時のみ: E2Eスモークテスト用にゲームインスタンスを公開(本番ビルドでは除去される)
+if (import.meta.env.DEV) {
+  (window as unknown as { __game?: Phaser.Game }).__game = game;
+}
