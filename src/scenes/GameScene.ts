@@ -65,6 +65,8 @@ export class GameScene extends Phaser.Scene {
     this.isEnded = false;
     this.pointerJump = false;
     this.forceJump = false;
+    // ゲームオーバー/クリアで物理を止めているため、(再)開始時に必ず再開する
+    this.physics.resume();
 
     // 背景(パララックス)
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
@@ -301,7 +303,31 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.player.setVelocity(0, 0);
-    this.showGameOver();
+    this.physics.pause(); // 敵の歩行を止める(プレイヤーの死亡演出は tween で行う)
+    this.cameras.main.stopFollow();
+    this.player.anims.stop();
+    this.player.setFrame(7); // 死亡ポーズ(原作 gameoverAnimation: col3,row1)
+    this.playDeathAnimation();
+  }
+
+  // 原作 gameoverAnimation 準拠: 少し跳ねてから画面下へ落下 → ゲームオーバー表示
+  private playDeathAnimation(): void {
+    const fallY = this.cameras.main.scrollY + GAME_HEIGHT + 80;
+    this.tweens.add({
+      targets: this.player,
+      y: this.player.y - 70,
+      duration: 200,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: this.player,
+          y: fallY,
+          duration: 500,
+          ease: 'Quad.easeIn',
+          onComplete: () => this.showGameOver(),
+        });
+      },
+    });
   }
 
   // 暗転フェード → gameover.png + リトライ/ステージ選択 ボタン
@@ -360,6 +386,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.player.setVelocity(0, 0);
+    this.physics.pause(); // クリア後も敵が動き続けないように止める
     recordClear(this.stageIndex, !this.usedGate);
     this.showResult();
   }
