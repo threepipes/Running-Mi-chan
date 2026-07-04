@@ -33,6 +33,7 @@ export class GameScene extends Phaser.Scene {
   private goalX = 0;
   private stageIndex = 0;
   private usedGate = false;
+  private specs: EntitySpec[] = [];
 
   constructor() {
     super('Game');
@@ -86,12 +87,13 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(false);
     this.physics.add.collider(this.player, this.layer);
 
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    // オートランなので、プレイヤーを画面やや左に置き前方を広く見せる(offsetXを負に)
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1, -GAME_WIDTH * 0.18, 0);
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
     // イベントからエンティティ生成
-    const specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
-    this.spawnEntities(specs);
+    this.specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
+    this.spawnEntities(this.specs);
     this.wireOverlaps();
 
     // 入力(キーボード + タップ)
@@ -134,9 +136,7 @@ export class GameScene extends Phaser.Scene {
       const px = s.tileX * TILE_SIZE + TILE_SIZE / 2;
       const py = s.tileY * TILE_SIZE + TILE_SIZE / 2;
       if (s.type === 'ENEMY') {
-        const e = this.enemies.create(px, py, 'kuri', 0) as Phaser.Physics.Arcade.Sprite;
-        e.setVelocityX(-ENEMY_SPEED);
-        e.anims.play('kuri-walk', true);
+        this.spawnEnemy(s.tileX, s.tileY);
       } else if (s.type === 'NEEDLE') {
         this.hazards.create(px, py, 'toge');
       } else if (s.type === 'SPRING') {
@@ -144,6 +144,22 @@ export class GameScene extends Phaser.Scene {
       } else if (s.type === 'GATE') {
         this.gates.create(px, py, 'gate');
       }
+    }
+  }
+
+  private spawnEnemy(tileX: number, tileY: number): void {
+    const px = tileX * TILE_SIZE + TILE_SIZE / 2;
+    const py = tileY * TILE_SIZE + TILE_SIZE / 2;
+    const e = this.enemies.create(px, py, 'kuri', 0) as Phaser.Physics.Arcade.Sprite;
+    e.setVelocityX(-ENEMY_SPEED);
+    e.anims.play('kuri-walk', true);
+  }
+
+  // 死亡時に敵を初期配置へ復元する(踏んで消えた敵・移動した敵を元に戻す)
+  private respawnEnemies(): void {
+    this.enemies.clear(true, true);
+    for (const s of this.specs) {
+      if (s.type === 'ENEMY') this.spawnEnemy(s.tileX, s.tileY);
     }
   }
 
@@ -243,6 +259,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setPosition(this.checkpointX, this.checkpointY);
     this.player.setVelocity(0, 0);
     this.forceJump = false;
+    this.respawnEnemies();
     this.cameras.main.flash(200, 255, 0, 0);
   }
 
