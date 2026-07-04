@@ -16,7 +16,8 @@ const game = new Phaser.Game({
   },
   physics: {
     default: 'arcade',
-    arcade: { gravity: { x: 0, y: GRAVITY_Y }, debug: false },
+    // tileBias: 高速で侵入したタイルを押し戻す余裕(既定16→32)。落下貫通対策の安全網
+    arcade: { gravity: { x: 0, y: GRAVITY_Y }, tileBias: 32, debug: false },
   },
   scene: [BootScene, TitleScene, StageSelectScene, GameScene],
 });

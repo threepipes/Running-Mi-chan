@@ -13,6 +13,10 @@ export const GRAVITY_Y = 1800;
 export const SPRING_VELOCITY = 980;
 export const ENEMY_SPEED = 100;
 
+// 落下の終端速度。1物理ステップ(1/60秒)の移動量がタイル厚(32px)を十分下回るよう
+// 上限をかけ、高所落下時に地面をすり抜ける(トンネリング)のを防ぐ。1200/60=20px/step。
+export const MAX_FALL_VELOCITY = 1200;
+
 // 敵踏み/バネの跳ね上げ時、接触前後の短い猶予(ms)内にタップしていれば
 // 跳躍速度に BOUNCE_BOOST を上乗せする(タイミングジャンプ)。空中の追加ジャンプは無し。
 export const BOUNCE_BOOST = 200;

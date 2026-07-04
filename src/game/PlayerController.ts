@@ -1,5 +1,12 @@
 import Phaser from 'phaser';
-import { RUN_SPEED, JUMP_VELOCITY, GAME_HEIGHT, BOUNCE_BOOST, BOUNCE_BOOST_WINDOW_MS } from '../config';
+import {
+  RUN_SPEED,
+  JUMP_VELOCITY,
+  GAME_HEIGHT,
+  BOUNCE_BOOST,
+  BOUNCE_BOOST_WINDOW_MS,
+  MAX_FALL_VELOCITY,
+} from '../config';
 
 /**
  * プレイヤー(mi-chan)の操作を集約する。
@@ -54,7 +61,13 @@ export class PlayerController {
   /** 毎フレーム: 自動前進 + ジャンプ入力処理 + アニメ */
   update(): void {
     this.sprite.setVelocityX(RUN_SPEED);
-    const onGround = this.sprite.body!.blocked.down;
+    const body = this.sprite.body!;
+    // 落下の終端速度クランプ(下方向のみ)。高所落下で地面をすり抜けるのを防ぐ。
+    // 上方向(ジャンプ/バネ/ブースト)には干渉しないよう velocity.y > 0 のときだけ丸める。
+    if (body.velocity.y > MAX_FALL_VELOCITY) {
+      this.sprite.setVelocityY(MAX_FALL_VELOCITY);
+    }
+    const onGround = body.blocked.down;
     const now = this.scene.time.now;
 
     if (this.consumeJump()) {
@@ -64,7 +77,7 @@ export class PlayerController {
         this.sprite.setVelocityY(-JUMP_VELOCITY);
       } else if (now <= this.boostArmedUntil && !this.boostApplied) {
         // 跳ね上げ直後の猶予内タップ: 上昇中の速度にブーストを後追い加算
-        this.sprite.setVelocityY(this.sprite.body!.velocity.y - BOUNCE_BOOST);
+        this.sprite.setVelocityY(body.velocity.y - BOUNCE_BOOST);
         this.boostApplied = true;
       }
     }
