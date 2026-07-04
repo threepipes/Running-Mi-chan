@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { RUN_SPEED, JUMP_VELOCITY, GAME_HEIGHT } from '../config';
+import { RUN_SPEED, JUMP_VELOCITY, GAME_HEIGHT, BOUNCE_BOOST, BOUNCE_BOOST_WINDOW_MS } from '../config';
 
 /**
  * プレイヤー(mi-chan)の操作を集約する。
  * - 自動前進 + ワンボタンジャンプ(Space/Up/タップ)
- * - バネ/踏みつけによる跳ね上げ(空中再ジャンプ許可)
+ * - バネ/踏みつけによる跳ね上げ。接触前後の猶予内にタップしていると跳躍が少し大きくなる
+ *   (空中の追加ジャンプはしない = ジャンプ回数は増えない)
  * - 死亡演出(死亡ポーズ→跳ね→画面下へ落下)
  * 死亡判定・ゴール判定・衝突配線などのゲームルールは GameScene 側が持つ。
  */
@@ -13,7 +14,12 @@ export class PlayerController {
   private readonly scene: Phaser.Scene;
   private readonly jumpKeys: Phaser.Input.Keyboard.Key[];
   private pointerJumpQueued = false;
-  private forceJump = false;
+  // 直近のジャンプ入力時刻(ms)。跳ね上げ接触「前」のタップ判定に使う
+  private lastJumpAt = Number.NEGATIVE_INFINITY;
+  // 跳ね上げ直後にブースト用タップを受け付ける期限(ms)。now <= これ の間だけ後追い受付
+  private boostArmedUntil = 0;
+  // 現在の跳ね上げでブースト適用済みか(二重適用防止)
+  private boostApplied = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, layer: Phaser.Tilemaps.TilemapLayer) {
     this.scene = scene;
@@ -25,9 +31,14 @@ export class PlayerController {
       scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
     ];
-    scene.input.on('pointerdown', () => {
-      this.pointerJumpQueued = true;
-    });
+    scene.input.on(
+      'pointerdown',
+      (_pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) => {
+        // UI(ポーズボタン等)上のタップはジャンプにしない。空き領域のタップのみジャンプ
+        if (currentlyOver.length > 0) return;
+        this.pointerJumpQueued = true;
+      },
+    );
   }
 
   get x(): number {
@@ -44,9 +55,18 @@ export class PlayerController {
   update(): void {
     this.sprite.setVelocityX(RUN_SPEED);
     const onGround = this.sprite.body!.blocked.down;
-    if (this.consumeJump() && (onGround || this.forceJump)) {
-      this.sprite.setVelocityY(-JUMP_VELOCITY);
-      this.forceJump = false;
+    const now = this.scene.time.now;
+
+    if (this.consumeJump()) {
+      this.lastJumpAt = now;
+      if (onGround) {
+        // 接地時のみ通常ジャンプ。空中では追加ジャンプしない
+        this.sprite.setVelocityY(-JUMP_VELOCITY);
+      } else if (now <= this.boostArmedUntil && !this.boostApplied) {
+        // 跳ね上げ直後の猶予内タップ: 上昇中の速度にブーストを後追い加算
+        this.sprite.setVelocityY(this.sprite.body!.velocity.y - BOUNCE_BOOST);
+        this.boostApplied = true;
+      }
     }
     this.sprite.anims.play(onGround ? 'run' : 'jump', true);
   }
@@ -63,10 +83,17 @@ export class PlayerController {
     this.pointerJumpQueued = false;
   }
 
-  /** バネ/踏みつけによる跳ね上げ。空中でも再ジャンプできるようにする */
+  /**
+   * バネ/踏みつけによる跳ね上げ。
+   * 接触「前」の猶予内にタップ済みなら即ブースト。未タップなら接触「後」の
+   * 猶予内タップを受け付ける(update 側で後追い加算)。いずれも空中の追加ジャンプはしない。
+   */
   bounce(velocity: number): void {
-    this.sprite.setVelocityY(-velocity);
-    this.forceJump = true;
+    const now = this.scene.time.now;
+    const preTapped = now - this.lastJumpAt <= BOUNCE_BOOST_WINDOW_MS;
+    this.sprite.setVelocityY(-(preTapped ? velocity + BOUNCE_BOOST : velocity));
+    this.boostApplied = preTapped;
+    this.boostArmedUntil = preTapped ? 0 : now + BOUNCE_BOOST_WINDOW_MS;
   }
 
   /** 死亡演出: 死亡ポーズ(frame7)→少し跳ねてから画面下へ落下→onComplete(原作 gameoverAnimation 準拠) */
