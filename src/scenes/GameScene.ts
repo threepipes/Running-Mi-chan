@@ -5,14 +5,13 @@ import {
   GAME_HEIGHT,
   RUN_SPEED,
   JUMP_VELOCITY,
-  ENEMY_SPEED,
   SPRING_VELOCITY,
 } from '../config';
-import { parseMap } from '../game/loaders/MapLoader';
-import { parseEvents, type EntitySpec } from '../game/loaders/EventLoader';
+import { parseEvents } from '../game/loaders/EventLoader';
 import { STAGES } from '../game/stages';
 import { recordClear } from '../game/Progress';
 import { registerAnims } from '../game/anims';
+import { buildTilemap, spawnEntities } from '../game/LevelBuilder';
 import { createImageButton } from '../ui/button';
 import { ProgressBar } from '../ui/ProgressBar';
 import { showGameClear, showGameOver } from '../ui/overlays';
@@ -75,18 +74,10 @@ export class GameScene extends Phaser.Scene {
 
     // タイルマップ
     const stage = STAGES[this.stageIndex];
-    const parsed = parseMap(this.cache.binary.get(stage.mapKey) as ArrayBuffer);
-    this.worldWidth = parsed.width * TILE_SIZE;
-    this.worldHeight = parsed.height * TILE_SIZE;
-
-    const map = this.make.tilemap({
-      data: parsed.data,
-      tileWidth: TILE_SIZE,
-      tileHeight: TILE_SIZE,
-    });
-    const tiles = map.addTilesetImage('mapTiles')!;
-    this.layer = map.createLayer(0, tiles, 0, 0)!;
-    this.layer.setCollisionByExclusion([-1]);
+    const level = buildTilemap(this, this.cache.binary.get(stage.mapKey) as ArrayBuffer);
+    this.layer = level.layer;
+    this.worldWidth = level.worldWidth;
+    this.worldHeight = level.worldHeight;
 
     this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
     this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
@@ -110,9 +101,13 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1, -GAME_WIDTH * 0.18, 0);
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
-    // イベントからエンティティ生成
+    // イベントからエンティティ生成し、衝突の挙動を配線
     const specs = parseEvents(this.cache.text.get(stage.eventKey) as string);
-    this.spawnEntities(specs);
+    const groups = spawnEntities(this, specs);
+    this.enemies = groups.enemies;
+    this.hazards = groups.hazards;
+    this.springs = groups.springs;
+    this.gates = groups.gates;
     this.wireOverlaps();
 
     // 入力(キーボード + タップ)
@@ -142,37 +137,6 @@ export class GameScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       (window as unknown as { __scene?: GameScene }).__scene = this;
     }
-  }
-
-  private spawnEntities(specs: EntitySpec[]): void {
-    this.enemies = this.physics.add.group();
-    this.hazards = this.physics.add.staticGroup();
-    this.springs = this.physics.add.staticGroup();
-    this.gates = this.physics.add.staticGroup();
-
-    for (const s of specs) {
-      // .evt のタイル座標は左上基準。Phaser のスプライトはデフォルト origin=0.5(中心)なので
-      // タイル中心に配置してズレを防ぐ
-      const px = s.tileX * TILE_SIZE + TILE_SIZE / 2;
-      const py = s.tileY * TILE_SIZE + TILE_SIZE / 2;
-      if (s.type === 'ENEMY') {
-        this.spawnEnemy(s.tileX, s.tileY);
-      } else if (s.type === 'NEEDLE') {
-        this.hazards.create(px, py, 'toge');
-      } else if (s.type === 'SPRING') {
-        this.springs.create(px, py, 'spring', 0);
-      } else if (s.type === 'GATE') {
-        this.gates.create(px, py, 'gate');
-      }
-    }
-  }
-
-  private spawnEnemy(tileX: number, tileY: number): void {
-    const px = tileX * TILE_SIZE + TILE_SIZE / 2;
-    const py = tileY * TILE_SIZE + TILE_SIZE / 2;
-    const e = this.enemies.create(px, py, 'kuri', 0) as Phaser.Physics.Arcade.Sprite;
-    e.setVelocityX(-ENEMY_SPEED);
-    e.anims.play('kuri-walk', true);
   }
 
   private wireOverlaps(): void {
