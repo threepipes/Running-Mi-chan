@@ -9,7 +9,7 @@ import {
   SPRING_VELOCITY,
 } from '../config';
 import { parseMap } from '../game/loaders/MapLoader';
-import { parseEvents } from '../game/loaders/EventLoader';
+import { parseEvents, type EntitySpec } from '../game/loaders/EventLoader';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -81,6 +81,25 @@ export class GameScene extends Phaser.Scene {
 
     // イベントからエンティティ生成
     const specs = parseEvents(this.cache.text.get('events') as string);
+    this.spawnEntities(specs);
+    this.wireOverlaps();
+
+    // 入力(キーボード + タップ)
+    this.jumpKeys = [
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+    ];
+    this.input.on('pointerdown', () => {
+      this.pointerJump = true;
+    });
+
+    // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
+    if (import.meta.env.DEV) {
+      (window as unknown as { __scene?: GameScene }).__scene = this;
+    }
+  }
+
+  private spawnEntities(specs: EntitySpec[]): void {
     this.enemies = this.physics.add.group();
     this.hazards = this.physics.add.staticGroup();
     this.springs = this.physics.add.staticGroup();
@@ -103,7 +122,9 @@ export class GameScene extends Phaser.Scene {
         this.gates.create(px, py, 'gate');
       }
     }
+  }
 
+  private wireOverlaps(): void {
     this.physics.add.collider(this.enemies, this.layer);
     this.physics.add.overlap(this.player, this.enemies, (_p, e) => {
       this.onEnemyOverlap(e as Phaser.Physics.Arcade.Sprite);
@@ -121,20 +142,6 @@ export class GameScene extends Phaser.Scene {
       this.checkpointX = gate.x;
       this.checkpointY = gate.y - TILE_SIZE * 2;
     });
-
-    // 入力(キーボード + タップ)
-    this.jumpKeys = [
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-    ];
-    this.input.on('pointerdown', () => {
-      this.pointerJump = true;
-    });
-
-    // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
-    if (import.meta.env.DEV) {
-      (window as unknown as { __scene?: GameScene }).__scene = this;
-    }
   }
 
   private createAnims(): void {
