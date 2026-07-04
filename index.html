@@ -2,11 +2,15 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>RunAction</title>
     <style>
-      html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
-      #game { width: 100vw; height: 100vh; }
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+      /* モバイルのアドレスバーを除いた実表示高さに合わせる(dvh)。非対応環境は vh にフォールバック */
+      #game { width: 100vw; height: 100vh; height: 100dvh; }
     </style>
   </head>
   <body>
