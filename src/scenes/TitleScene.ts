@@ -1,0 +1,22 @@
+import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config';
+
+export class TitleScene extends Phaser.Scene {
+  constructor() {
+    super('Title');
+  }
+  create(): void {
+    this.add.image(0, 0, 'title').setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.3, 'title_logo').setOrigin(0.5);
+    this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.7, 'タップでスタート', {
+        color: '#ffffff',
+        fontSize: '32px',
+      })
+      .setOrigin(0.5);
+
+    const go = () => this.scene.start('StageSelect');
+    this.input.once('pointerdown', go);
+    this.input.keyboard!.once('keydown', go);
+  }
+}

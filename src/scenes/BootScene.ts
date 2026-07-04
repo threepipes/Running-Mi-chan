@@ -27,7 +27,6 @@ export class BootScene extends Phaser.Scene {
     }
   }
   create(): void {
-    // Task 6 で 'Title' に変更する
-    this.scene.start('Game');
+    this.scene.start('Title');
   }
 }
