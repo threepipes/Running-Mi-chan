@@ -218,12 +218,25 @@ export class GameScene extends Phaser.Scene {
   private clear(): void {
     if (this.isEnded) return;
     this.isEnded = true;
-    this.player.sprite.setVelocity(0, 0);
-    this.physics.pause(); // クリア後も敵が動き続けないように止める
     recordClear(this.stageIndex, !this.usedGate);
-    showGameClear(this, {
-      onRetry: () => this.scene.restart({ stageIndex: this.stageIndex }),
-      onSelect: () => this.scene.start('StageSelect'),
+
+    // 原作準拠のクリア演出: みーちゃんは止めずに右へ走り抜けさせつつ約0.8秒で暗転し、
+    // 全黒になってから gameclear 画面(タイトルへ)を表示する。
+    // isEnded=true で update() は早期 return するため、走行速度は物理側で維持される。
+    const cam = this.cameras.main;
+    const black = this.add
+      .rectangle(cam.centerX, cam.centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000)
+      .setScrollFactor(0)
+      .setDepth(90)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: black,
+      alpha: 1,
+      duration: 800,
+      onComplete: () => {
+        this.physics.pause(); // 暗転後に敵の動きも止める
+        showGameClear(this, { onTitle: () => this.scene.start('Title') });
+      },
     });
   }
 }

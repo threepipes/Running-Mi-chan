@@ -13,6 +13,10 @@ export interface PauseActions {
   onTitle: () => void;
 }
 
+export interface ClearActions {
+  onTitle: () => void;
+}
+
 /**
  * ポーズメニュー(原作準拠: 続ける/リスタート/タイトルへ)を表示する。
  * 生成したオブジェクトの配列を返すので、再開時に呼び出し側で destroy する。
@@ -76,12 +80,25 @@ function addResultButtons(scene: Phaser.Scene, cx: number, cy: number, actions: 
   make(235, 'ステージ選択へ', actions.onSelect);
 }
 
-/** クリア演出: gameclear 画像 + 2択ボタン */
-export function showGameClear(scene: Phaser.Scene, actions: OverlayActions): void {
+/**
+ * クリア画面(原作準拠): gameclear 画像 + 「タイトルへ」1ボタン。
+ * 暗転フェードは呼び出し側(GameScene)が行い、暗転後の全黒画面上にこれを表示する。
+ */
+export function showGameClear(scene: Phaser.Scene, actions: ClearActions): void {
   const cx = scene.cameras.main.centerX;
   const cy = scene.cameras.main.centerY;
   scene.add.image(cx, cy - 80, 'gameclear').setScrollFactor(0).setDepth(100).setScale(0.6);
-  addResultButtons(scene, cx, cy, actions);
+  createImageButton({
+    scene,
+    x: cx,
+    y: cy + 150,
+    texture: 'button_large',
+    pressedTexture: 'button_large_pressed',
+    label: 'タイトルへ',
+    scrollFactor: 0,
+    depth: 100,
+    onClick: actions.onTitle,
+  });
 }
 
 /** ゲームオーバー演出: 暗転フェード → gameover 画像 + 2択ボタン */
