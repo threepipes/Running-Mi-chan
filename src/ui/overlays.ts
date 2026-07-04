@@ -7,6 +7,57 @@ export interface OverlayActions {
   onSelect: () => void;
 }
 
+export interface PauseActions {
+  onContinue: () => void;
+  onRestart: () => void;
+  onTitle: () => void;
+}
+
+/**
+ * ポーズメニュー(原作準拠: 続ける/リスタート/タイトルへ)を表示する。
+ * 生成したオブジェクトの配列を返すので、再開時に呼び出し側で destroy する。
+ */
+export function showPause(scene: Phaser.Scene, actions: PauseActions): Phaser.GameObjects.GameObject[] {
+  const cam = scene.cameras.main;
+  const cx = cam.centerX;
+  const cy = cam.centerY;
+  const objs: Phaser.GameObjects.GameObject[] = [];
+
+  objs.push(
+    scene.add
+      .rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6)
+      .setScrollFactor(0)
+      .setDepth(90),
+  );
+  objs.push(
+    scene.add
+      .text(cx, cy - 180, 'ポーズ', { color: '#ffffff', fontSize: '40px' })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100),
+  );
+
+  const make = (dy: number, label: string, onClick: () => void) =>
+    objs.push(
+      createImageButton({
+        scene,
+        x: cx,
+        y: cy + dy,
+        texture: 'button_large',
+        pressedTexture: 'button_large_pressed',
+        label,
+        scrollFactor: 0,
+        depth: 100,
+        onClick,
+      }),
+    );
+  make(-40, '続ける', actions.onContinue);
+  make(65, 'リスタート', actions.onRestart);
+  make(170, 'タイトルへ', actions.onTitle);
+
+  return objs;
+}
+
 // クリア/ゲームオーバー共通の2択ボタン(リトライ / ステージ選択へ)
 function addResultButtons(scene: Phaser.Scene, cx: number, cy: number, actions: OverlayActions): void {
   const make = (dy: number, label: string, onClick: () => void) =>
