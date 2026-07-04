@@ -103,6 +103,19 @@ export class GameScene extends Phaser.Scene {
       this.pointerJump = true;
     });
 
+    // ゲーム中: 選択画面へ戻る
+    const backBtn = this.add
+      .text(16, 16, '≪ 選択', {
+        color: '#ffffff',
+        fontSize: '22px',
+        backgroundColor: '#00000080',
+        padding: { x: 10, y: 6 },
+      })
+      .setScrollFactor(0)
+      .setDepth(50)
+      .setInteractive({ useHandCursor: true });
+    backBtn.on('pointerup', () => this.scene.start('StageSelect'));
+
     // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
     if (import.meta.env.DEV) {
       (window as unknown as { __scene?: GameScene }).__scene = this;
@@ -238,25 +251,34 @@ export class GameScene extends Phaser.Scene {
     this.isEnded = true;
     this.player.setVelocity(0, 0);
     recordClear(this.stageIndex, !this.usedGate);
-    this.showOverlay('gameclear');
+    this.showResult();
   }
 
-  private showOverlay(textureKey: string): void {
-    const img = this.add
-      .image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+  private showResult(): void {
+    const cx = this.cameras.main.centerX;
+    const cy = this.cameras.main.centerY;
+    this.add
+      .image(cx, cy - 80, 'gameclear')
       .setScrollFactor(0)
       .setDepth(100)
       .setScale(0.6);
-    this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY + 180, 'タップでリトライ', {
-        color: '#ffffff',
-        fontSize: '28px',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(100);
-    void img;
-    this.input.once('pointerdown', () => this.scene.restart({ stageIndex: this.stageIndex }));
-    this.input.keyboard!.once('keydown', () => this.scene.restart({ stageIndex: this.stageIndex }));
+
+    const makeButton = (dy: number, label: string, onClick: () => void) => {
+      this.add
+        .text(cx, cy + dy, label, {
+          color: '#ffffff',
+          fontSize: '30px',
+          backgroundColor: '#333333',
+          padding: { x: 18, y: 10 },
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(100)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerup', onClick);
+    };
+
+    makeButton(120, 'リトライ', () => this.scene.restart({ stageIndex: this.stageIndex }));
+    makeButton(190, 'ステージ選択へ', () => this.scene.start('StageSelect'));
   }
 }
