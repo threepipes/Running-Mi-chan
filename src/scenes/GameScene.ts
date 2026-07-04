@@ -1,5 +1,13 @@
 import Phaser from 'phaser';
-import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, RUN_SPEED, JUMP_VELOCITY, ENEMY_SPEED } from '../config';
+import {
+  TILE_SIZE,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  RUN_SPEED,
+  JUMP_VELOCITY,
+  ENEMY_SPEED,
+  SPRING_VELOCITY,
+} from '../config';
 import { parseMap } from '../game/loaders/MapLoader';
 import { parseEvents } from '../game/loaders/EventLoader';
 
@@ -9,6 +17,9 @@ export class GameScene extends Phaser.Scene {
   private worldHeight = 0;
   private player!: Phaser.Physics.Arcade.Sprite;
   private enemies!: Phaser.Physics.Arcade.Group;
+  private hazards!: Phaser.Physics.Arcade.StaticGroup;
+  private springs!: Phaser.Physics.Arcade.StaticGroup;
+  private gates!: Phaser.Physics.Arcade.StaticGroup;
   private jumpKeys!: Phaser.Input.Keyboard.Key[];
   private pointerJump = false;
   private forceJump = false;
@@ -67,6 +78,9 @@ export class GameScene extends Phaser.Scene {
     // イベントからエンティティ生成
     const specs = parseEvents(this.cache.text.get('events') as string);
     this.enemies = this.physics.add.group();
+    this.hazards = this.physics.add.staticGroup();
+    this.springs = this.physics.add.staticGroup();
+    this.gates = this.physics.add.staticGroup();
 
     for (const s of specs) {
       // .evt のタイル座標は左上基準。Phaser のスプライトはデフォルト origin=0.5(中心)なので
@@ -77,12 +91,31 @@ export class GameScene extends Phaser.Scene {
         const e = this.enemies.create(px, py, 'kuri', 0) as Phaser.Physics.Arcade.Sprite;
         e.setVelocityX(-ENEMY_SPEED);
         e.anims.play('kuri-walk', true);
+      } else if (s.type === 'NEEDLE') {
+        this.hazards.create(px, py, 'toge');
+      } else if (s.type === 'SPRING') {
+        this.springs.create(px, py, 'spring', 0);
+      } else if (s.type === 'GATE') {
+        this.gates.create(px, py, 'gate');
       }
     }
 
     this.physics.add.collider(this.enemies, this.layer);
     this.physics.add.overlap(this.player, this.enemies, (_p, e) => {
       this.onEnemyOverlap(e as Phaser.Physics.Arcade.Sprite);
+    });
+    this.physics.add.overlap(this.player, this.hazards, () => {
+      this.die();
+    });
+    this.physics.add.overlap(this.player, this.springs, () => {
+      if (this.isEnded) return;
+      this.player.setVelocityY(-SPRING_VELOCITY);
+      this.forceJump = true;
+    });
+    this.physics.add.overlap(this.player, this.gates, (_p, g) => {
+      const gate = g as Phaser.Physics.Arcade.Sprite;
+      this.checkpointX = gate.x;
+      this.checkpointY = gate.y - TILE_SIZE * 2;
     });
 
     // 入力(キーボード + タップ)
