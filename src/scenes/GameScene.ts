@@ -12,6 +12,7 @@ import { parseMap } from '../game/loaders/MapLoader';
 import { parseEvents, type EntitySpec } from '../game/loaders/EventLoader';
 import { STAGES } from '../game/stages';
 import { recordClear } from '../game/Progress';
+import { createImageButton } from '../ui/button';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -105,18 +106,17 @@ export class GameScene extends Phaser.Scene {
       this.pointerJump = true;
     });
 
-    // ゲーム中: 選択画面へ戻る
-    const backBtn = this.add
-      .text(16, 16, '≪ 選択', {
-        color: '#ffffff',
-        fontSize: '22px',
-        backgroundColor: '#00000080',
-        padding: { x: 10, y: 6 },
-      })
-      .setScrollFactor(0)
-      .setDepth(50)
-      .setInteractive({ useHandCursor: true });
-    backBtn.on('pointerup', () => this.scene.start('StageSelect'));
+    // ゲーム中: ポーズ相当の小ボタン(左上)。押すと選択画面へ戻る
+    createImageButton({
+      scene: this,
+      x: 52,
+      y: 52,
+      texture: 'button_pause',
+      pressedTexture: 'button_pause_pressed',
+      scrollFactor: 0,
+      depth: 50,
+      onClick: () => this.scene.start('StageSelect'),
+    });
 
     // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
     if (import.meta.env.DEV) {
@@ -281,21 +281,20 @@ export class GameScene extends Phaser.Scene {
       .setScale(0.6);
 
     const makeButton = (dy: number, label: string, onClick: () => void) => {
-      this.add
-        .text(cx, cy + dy, label, {
-          color: '#ffffff',
-          fontSize: '30px',
-          backgroundColor: '#333333',
-          padding: { x: 18, y: 10 },
-        })
-        .setOrigin(0.5)
-        .setScrollFactor(0)
-        .setDepth(100)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerup', onClick);
+      createImageButton({
+        scene: this,
+        x: cx,
+        y: cy + dy,
+        texture: 'button_large',
+        pressedTexture: 'button_large_pressed',
+        label,
+        scrollFactor: 0,
+        depth: 100,
+        onClick,
+      });
     };
 
-    makeButton(120, 'リトライ', () => this.scene.restart({ stageIndex: this.stageIndex }));
-    makeButton(190, 'ステージ選択へ', () => this.scene.start('StageSelect'));
+    makeButton(130, 'リトライ', () => this.scene.restart({ stageIndex: this.stageIndex }));
+    makeButton(235, 'ステージ選択へ', () => this.scene.start('StageSelect'));
   }
 }
