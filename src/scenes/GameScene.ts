@@ -35,6 +35,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.isEnded = false;
+    this.pointerJump = false;
+    this.forceJump = false;
+
     // 背景(パララックス)
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
     this.add
@@ -208,11 +212,32 @@ export class GameScene extends Phaser.Scene {
     this.player.setPosition(this.checkpointX, this.checkpointY);
     this.player.setVelocity(0, 0);
     this.forceJump = false;
+    this.cameras.main.flash(200, 255, 0, 0);
   }
 
   private clear(): void {
     if (this.isEnded) return;
     this.isEnded = true;
     this.player.setVelocity(0, 0);
+    this.showOverlay('gameclear');
+  }
+
+  private showOverlay(textureKey: string): void {
+    const img = this.add
+      .image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setScale(0.6);
+    this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY + 180, 'タップでリトライ', {
+        color: '#ffffff',
+        fontSize: '28px',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(100);
+    void img;
+    this.input.once('pointerdown', () => this.scene.restart());
+    this.input.keyboard!.once('keydown', () => this.scene.restart());
   }
 }
