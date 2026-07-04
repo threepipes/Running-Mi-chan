@@ -8,7 +8,7 @@ import { buildTilemap, spawnEntities } from '../game/LevelBuilder';
 import { PlayerController } from '../game/PlayerController';
 import { createImageButton } from '../ui/button';
 import { ProgressBar } from '../ui/ProgressBar';
-import { showGameClear, showGameOver } from '../ui/overlays';
+import { showGameClear, showGameOver, showPause } from '../ui/overlays';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -20,6 +20,8 @@ export class GameScene extends Phaser.Scene {
   private springs!: Phaser.Physics.Arcade.StaticGroup;
   private gates!: Phaser.Physics.Arcade.StaticGroup;
   private isEnded = false;
+  private isPaused = false;
+  private pauseObjects: Phaser.GameObjects.GameObject[] = [];
   private startX = TILE_SIZE * 2;
   private startY = 0;
   private checkpointX = TILE_SIZE * 2;
@@ -50,7 +52,9 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.isEnded = false;
-    // ゲームオーバー/クリアで物理を止めているため、(再)開始時に必ず再開する
+    this.isPaused = false;
+    this.pauseObjects = [];
+    // ゲームオーバー/クリア/ポーズで物理を止めているため、(再)開始時に必ず再開する
     this.physics.resume();
 
     // 背景(パララックス)
@@ -97,7 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.gates = groups.gates;
     this.wireOverlaps();
 
-    // ゲーム中: ポーズ相当の小ボタン(左上)。押すと選択画面へ戻る
+    // ゲーム中: ポーズボタン(左上)。押すとポーズメニューを表示
     createImageButton({
       scene: this,
       x: 52,
@@ -106,7 +110,7 @@ export class GameScene extends Phaser.Scene {
       pressedTexture: 'button_pause_pressed',
       scrollFactor: 0,
       depth: 50,
-      onClick: () => this.scene.start('StageSelect'),
+      onClick: () => this.pauseGame(),
     });
 
     this.progressBar = new ProgressBar(this, this.goalX);
@@ -139,7 +143,7 @@ export class GameScene extends Phaser.Scene {
 
   update(): void {
     this.progressBar.update(this.player.x);
-    if (this.isEnded) return;
+    if (this.isEnded || this.isPaused) return;
 
     this.player.update();
 
@@ -157,6 +161,27 @@ export class GameScene extends Phaser.Scene {
     if (this.player.x >= this.goalX) {
       this.clear();
     }
+  }
+
+  // 原作準拠のポーズ: 物理を止めてメニュー(続ける/リスタート/タイトルへ)を表示
+  private pauseGame(): void {
+    if (this.isEnded || this.isPaused) return;
+    this.isPaused = true;
+    this.physics.pause();
+    this.pauseObjects = showPause(this, {
+      onContinue: () => this.resumeGame(),
+      onRestart: () => this.scene.restart({ stageIndex: this.stageIndex }),
+      onTitle: () => this.scene.start('Title'),
+    });
+  }
+
+  private resumeGame(): void {
+    if (!this.isPaused) return;
+    this.isPaused = false;
+    this.pauseObjects.forEach((o) => o.destroy());
+    this.pauseObjects = [];
+    this.player.resetJumpInput(); // 「続ける」タップで溜まったジャンプ入力を捨てる
+    this.physics.resume();
   }
 
   private onEnemyOverlap(enemy: Phaser.Physics.Arcade.Sprite): void {

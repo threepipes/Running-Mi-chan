@@ -58,6 +58,11 @@ export class PlayerController {
     return keyJust || pointer;
   }
 
+  /** ポーズ再開時など、溜まったジャンプ入力を捨てる(再開直後の暴発防止) */
+  resetJumpInput(): void {
+    this.pointerJumpQueued = false;
+  }
+
   /** バネ/踏みつけによる跳ね上げ。空中でも再ジャンプできるようにする */
   bounce(velocity: number): void {
     this.sprite.setVelocityY(-velocity);
