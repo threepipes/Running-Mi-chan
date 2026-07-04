@@ -12,12 +12,10 @@ import { parseMap } from '../game/loaders/MapLoader';
 import { parseEvents, type EntitySpec } from '../game/loaders/EventLoader';
 import { STAGES } from '../game/stages';
 import { recordClear } from '../game/Progress';
+import { registerAnims } from '../game/anims';
 import { createImageButton } from '../ui/button';
-
-// 進捗バーのレイアウト(原作準拠: bar_base 300x50, 内側パディング6)
-const BAR_W = 300;
-const BAR_PAD = 6;
-const BAR_CENTER_Y = 60;
+import { ProgressBar } from '../ui/ProgressBar';
+import { showGameClear, showGameOver } from '../ui/overlays';
 
 export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
@@ -42,8 +40,7 @@ export class GameScene extends Phaser.Scene {
   private resumeX?: number;
   private resumeY?: number;
   private resumeUsedGate = false;
-  private progressFill!: Phaser.GameObjects.Rectangle;
-  private progressPin!: Phaser.GameObjects.Image;
+  private progressBar!: ProgressBar;
 
   constructor() {
     super('Game');
@@ -103,7 +100,7 @@ export class GameScene extends Phaser.Scene {
     this.usedGate = this.resumeUsedGate;
     this.goalX = this.worldWidth - GAME_WIDTH;
 
-    this.createAnims();
+    registerAnims(this);
 
     this.player = this.physics.add.sprite(spawnX, spawnY, 'player', 0);
     this.player.setCollideWorldBounds(false);
@@ -139,7 +136,7 @@ export class GameScene extends Phaser.Scene {
       onClick: () => this.scene.start('StageSelect'),
     });
 
-    this.createProgressBar();
+    this.progressBar = new ProgressBar(this, this.goalX);
 
     // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
     if (import.meta.env.DEV) {
@@ -199,59 +196,8 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private createAnims(): void {
-    if (!this.anims.exists('run')) {
-      this.anims.create({
-        key: 'run',
-        frames: this.anims.generateFrameNumbers('player', { frames: [0, 1, 2, 3] }),
-        frameRate: 12,
-        repeat: -1,
-      });
-      this.anims.create({
-        key: 'jump',
-        frames: [{ key: 'player', frame: 4 }],
-        frameRate: 1,
-      });
-      this.anims.create({
-        key: 'kuri-walk',
-        frames: this.anims.generateFrameNumbers('kuri', { frames: [0, 1] }),
-        frameRate: 6,
-        repeat: -1,
-      });
-    }
-  }
-
-  // 画面上部に固定表示するステージ進捗バー(基盤 + 赤い塗り + 現在位置ピン)
-  private createProgressBar(): void {
-    const cx = GAME_WIDTH / 2;
-    const innerLeft = cx - BAR_W / 2 + BAR_PAD;
-    const innerWidth = BAR_W - BAR_PAD * 2;
-    // 赤い塗り(左端起点で scaleX により伸縮)
-    this.progressFill = this.add
-      .rectangle(innerLeft, BAR_CENTER_Y, innerWidth, 12, 0xff1111)
-      .setOrigin(0, 0.5)
-      .setScrollFactor(0)
-      .setDepth(41);
-    this.progressFill.scaleX = 0;
-    // 基盤トラック
-    this.add.image(cx, BAR_CENTER_Y, 'bar_base').setScrollFactor(0).setDepth(40);
-    // 現在位置ピン
-    this.progressPin = this.add
-      .image(innerLeft, BAR_CENTER_Y - 15, 'bar_progress')
-      .setScrollFactor(0)
-      .setDepth(42);
-  }
-
-  private updateProgressBar(): void {
-    const innerLeft = GAME_WIDTH / 2 - BAR_W / 2 + BAR_PAD;
-    const innerWidth = BAR_W - BAR_PAD * 2;
-    const progress = Phaser.Math.Clamp(this.player.x / this.goalX, 0, 1);
-    this.progressFill.scaleX = progress;
-    this.progressPin.x = innerLeft + progress * innerWidth;
-  }
-
   update(): void {
-    this.updateProgressBar();
+    this.progressBar.update(this.player.x);
     if (this.isEnded) return;
 
     this.player.setVelocityX(RUN_SPEED);
@@ -324,61 +270,20 @@ export class GameScene extends Phaser.Scene {
           y: fallY,
           duration: 500,
           ease: 'Quad.easeIn',
-          onComplete: () => this.showGameOver(),
+          // 落下後にゲームオーバー画面。リトライはチェックポイント(通過ゲート/スタート)から
+          onComplete: () =>
+            showGameOver(this, {
+              onRetry: () =>
+                this.scene.restart({
+                  stageIndex: this.stageIndex,
+                  resumeX: this.checkpointX,
+                  resumeY: this.checkpointY,
+                  usedGate: this.usedGate,
+                }),
+              onSelect: () => this.scene.start('StageSelect'),
+            }),
         });
       },
-    });
-  }
-
-  // 暗転フェード → gameover.png + リトライ/ステージ選択 ボタン
-  private showGameOver(): void {
-    const cam = this.cameras.main;
-    const black = this.add
-      .rectangle(cam.centerX, cam.centerY, GAME_WIDTH, GAME_HEIGHT, 0x000000)
-      .setScrollFactor(0)
-      .setDepth(90)
-      .setAlpha(0);
-    this.tweens.add({
-      targets: black,
-      alpha: 0.7,
-      duration: 300,
-      onComplete: () => this.showGameOverUI(),
-    });
-  }
-
-  private showGameOverUI(): void {
-    const cx = this.cameras.main.centerX;
-    const cy = this.cameras.main.centerY;
-    this.add.image(cx, cy - 80, 'gameover').setScrollFactor(0).setDepth(100).setScale(0.7);
-
-    createImageButton({
-      scene: this,
-      x: cx,
-      y: cy + 130,
-      texture: 'button_large',
-      pressedTexture: 'button_large_pressed',
-      label: 'リトライ',
-      scrollFactor: 0,
-      depth: 100,
-      // チェックポイント(通過ゲート/スタート)から再開
-      onClick: () =>
-        this.scene.restart({
-          stageIndex: this.stageIndex,
-          resumeX: this.checkpointX,
-          resumeY: this.checkpointY,
-          usedGate: this.usedGate,
-        }),
-    });
-    createImageButton({
-      scene: this,
-      x: cx,
-      y: cy + 235,
-      texture: 'button_large',
-      pressedTexture: 'button_large_pressed',
-      label: 'ステージ選択へ',
-      scrollFactor: 0,
-      depth: 100,
-      onClick: () => this.scene.start('StageSelect'),
     });
   }
 
@@ -388,33 +293,9 @@ export class GameScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.physics.pause(); // クリア後も敵が動き続けないように止める
     recordClear(this.stageIndex, !this.usedGate);
-    this.showResult();
-  }
-
-  private showResult(): void {
-    const cx = this.cameras.main.centerX;
-    const cy = this.cameras.main.centerY;
-    this.add
-      .image(cx, cy - 80, 'gameclear')
-      .setScrollFactor(0)
-      .setDepth(100)
-      .setScale(0.6);
-
-    const makeButton = (dy: number, label: string, onClick: () => void) => {
-      createImageButton({
-        scene: this,
-        x: cx,
-        y: cy + dy,
-        texture: 'button_large',
-        pressedTexture: 'button_large_pressed',
-        label,
-        scrollFactor: 0,
-        depth: 100,
-        onClick,
-      });
-    };
-
-    makeButton(130, 'リトライ', () => this.scene.restart({ stageIndex: this.stageIndex }));
-    makeButton(235, 'ステージ選択へ', () => this.scene.start('StageSelect'));
+    showGameClear(this, {
+      onRetry: () => this.scene.restart({ stageIndex: this.stageIndex }),
+      onSelect: () => this.scene.start('StageSelect'),
+    });
   }
 }
