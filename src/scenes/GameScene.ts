@@ -93,6 +93,11 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', () => {
       this.pointerJump = true;
     });
+
+    // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
+    if (import.meta.env.DEV) {
+      (window as unknown as { __scene?: GameScene }).__scene = this;
+    }
   }
 
   private createAnims(): void {
