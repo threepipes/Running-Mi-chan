@@ -89,7 +89,7 @@ export class GameScene extends Phaser.Scene {
     this.player = new PlayerController(this, spawnX, spawnY, this.layer);
 
     // オートランなので、プレイヤーを画面やや左に置き前方を広く見せる(offsetXを負に)
-    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1, -GAME_WIDTH * 0.18, 0);
+    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1, -GAME_WIDTH * 0.35, 0);
     this.cameras.main.setDeadzone(0, GAME_HEIGHT);
 
     // イベントからエンティティ生成し、衝突の挙動を配線
