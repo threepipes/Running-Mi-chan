@@ -28,3 +28,6 @@ export const JUMP_BUFFER_MS = 120;
 
 // ゲームプレイ中の BGM 音量(0.0〜1.0)
 export const BGM_VOLUME = 0.5;
+
+// 効果音(SE)の音量(0.0〜1.0)
+export const SE_VOLUME = 0.8;

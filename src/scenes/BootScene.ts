@@ -28,6 +28,7 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('kuri', 'assets/kuri.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('spring', 'assets/jump.png', { frameWidth: 32, frameHeight: 32 });
     this.load.audio('bgm', 'assets/running.mp3');
+    this.load.audio('se_damaged', 'assets/damaged.mp3');
     for (const stage of STAGES) {
       this.load.binary(stage.mapKey, stage.mapFile);
       this.load.text(stage.eventKey, stage.eventFile);
