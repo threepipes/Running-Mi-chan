@@ -27,8 +27,9 @@ export class EditorUI {
     const wInput = this.numberInput(100);
     const hInput = this.numberInput(30);
     const newBtn = this.button('新規', () => {
-      const w = parseInt(wInput.value, 10) || 100;
-      const h = parseInt(hInput.value, 10) || 30;
+      // 幅・高さは 1 以上にガード(0 や負値でマップが壊れないように)
+      const w = Math.max(1, parseInt(wInput.value, 10) || 100);
+      const h = Math.max(1, parseInt(hInput.value, 10) || 30);
       this.scene.loadState(EditorState.empty(w, h));
     });
 
@@ -90,6 +91,13 @@ export class EditorUI {
         palette.appendChild(this.tileSwatch(index, img.src));
       }
     };
+    // 読込失敗時はパレット領域にエラーを表示(無反応にしない)
+    img.onerror = () => {
+      const msg = document.createElement('div');
+      msg.style.cssText = 'color:#f88;padding:8px;font-size:12px;';
+      msg.textContent = 'タイル画像(assets/map.png)の読込に失敗しました';
+      palette.appendChild(msg);
+    };
   }
 
   private tileSwatch(index: number, url: string): HTMLElement {
@@ -127,11 +135,15 @@ export class EditorUI {
   // ---- 読込/保存 ----
 
   private async loadStage(mapPath: string, evtPath: string): Promise<void> {
-    const [mapBuf, evtText] = await Promise.all([
-      fetch(mapPath).then((r) => r.arrayBuffer()),
-      fetch(evtPath).then((r) => r.text()),
-    ]);
-    this.applyLoaded(mapBuf, evtText);
+    try {
+      const [mapBuf, evtText] = await Promise.all([
+        fetch(mapPath).then((r) => r.arrayBuffer()),
+        fetch(evtPath).then((r) => r.text()),
+      ]);
+      this.applyLoaded(mapBuf, evtText);
+    } catch (err) {
+      alert('マップの読込に失敗しました: ' + err);
+    }
   }
 
   private loadFromFiles(mapInput: HTMLInputElement, evtInput: HTMLInputElement): void {
@@ -140,7 +152,9 @@ export class EditorUI {
     const evtF = evtInput.files?.[0];
     const mapP = mapF.arrayBuffer();
     const evtP = evtF ? evtF.text() : Promise.resolve('');
-    Promise.all([mapP, evtP]).then(([buf, txt]) => this.applyLoaded(buf, txt));
+    Promise.all([mapP, evtP])
+      .then(([buf, txt]) => this.applyLoaded(buf, txt))
+      .catch((err) => alert('マップの読込に失敗しました: ' + err));
   }
 
   private applyLoaded(mapBuf: ArrayBuffer, evtText: string): void {
@@ -151,7 +165,7 @@ export class EditorUI {
 
   private save(name: string): void {
     const mapBytes = serializeMap(this.scene.state.chips);
-    // Uint8Array のビューを正確に切り出して Blob 化
+    // slice() で Uint8Array を複製し、BlobPart として受け付けられる型へ適合させる
     const mapBlob = new Blob([mapBytes.slice()], { type: 'application/octet-stream' });
     this.download(mapBlob, `${name}.map`);
     const evtBlob = new Blob([serializeEvents(this.scene.state.entities)], { type: 'text/plain' });
@@ -181,6 +195,7 @@ export class EditorUI {
   private numberInput(value: number): HTMLInputElement {
     const i = document.createElement('input');
     i.type = 'number';
+    i.min = '1';
     i.value = String(value);
     i.size = 4;
     i.style.width = '52px';
