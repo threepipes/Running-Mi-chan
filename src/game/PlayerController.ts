@@ -6,6 +6,7 @@ import {
   BOUNCE_BOOST,
   BOUNCE_BOOST_WINDOW_MS,
   MAX_FALL_VELOCITY,
+  JUMP_BUFFER_MS,
 } from '../config';
 
 /**
@@ -27,6 +28,8 @@ export class PlayerController {
   private boostArmedUntil = 0;
   // 現在の跳ね上げでブースト適用済みか(二重適用防止)
   private boostApplied = false;
+  // ジャンプ入力バッファの期限(ms)。着地直前に押した入力を覚え、接地時に発火する
+  private jumpBufferedUntil = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, layer: Phaser.Tilemaps.TilemapLayer) {
     this.scene = scene;
@@ -72,15 +75,23 @@ export class PlayerController {
 
     if (this.consumeJump()) {
       this.lastJumpAt = now;
-      if (onGround) {
-        // 接地時のみ通常ジャンプ。空中では追加ジャンプしない
-        this.sprite.setVelocityY(-JUMP_VELOCITY);
-      } else if (now <= this.boostArmedUntil && !this.boostApplied) {
+      // 入力バッファに積む。接地していなくても JUMP_BUFFER_MS の間は覚えておき、
+      // この後(または後続フレーム)で接地した時点で発火させる(着地直前の先行入力対応)。
+      this.jumpBufferedUntil = now + JUMP_BUFFER_MS;
+      if (!onGround && now <= this.boostArmedUntil && !this.boostApplied) {
         // 跳ね上げ直後の猶予内タップ: 上昇中の速度にブーストを後追い加算
         this.sprite.setVelocityY(body.velocity.y - BOUNCE_BOOST);
         this.boostApplied = true;
       }
     }
+
+    // 接地中にバッファされたジャンプ入力があれば発火。押した瞬間に接地していれば
+    // 即ジャンプ、着地直前に押していた場合は着地したフレームでジャンプする。
+    if (onGround && now <= this.jumpBufferedUntil) {
+      this.sprite.setVelocityY(-JUMP_VELOCITY);
+      this.jumpBufferedUntil = 0;
+    }
+
     this.sprite.anims.play(onGround ? 'run' : 'jump', true);
   }
 
@@ -94,6 +105,7 @@ export class PlayerController {
   /** ポーズ再開時など、溜まったジャンプ入力を捨てる(再開直後の暴発防止) */
   resetJumpInput(): void {
     this.pointerJumpQueued = false;
+    this.jumpBufferedUntil = 0;
   }
 
   /**
