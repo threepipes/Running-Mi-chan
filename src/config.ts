@@ -21,3 +21,7 @@ export const MAX_FALL_VELOCITY = 1200;
 // 跳躍速度に BOUNCE_BOOST を上乗せする(タイミングジャンプ)。空中の追加ジャンプは無し。
 export const BOUNCE_BOOST = 200;
 export const BOUNCE_BOOST_WINDOW_MS = 150;
+
+// ジャンプ入力バッファ(ms)。着地する少し前に押したジャンプを覚えておき、
+// この猶予内に接地したら発火する。着地直前の先行入力が捨てられるのを防ぐ。
+export const JUMP_BUFFER_MS = 120;
