@@ -27,7 +27,7 @@ export const BOUNCE_BOOST_WINDOW_MS = 150;
 export const JUMP_BUFFER_MS = 120;
 
 // ゲームプレイ中の BGM 音量(0.0〜1.0)
-export const BGM_VOLUME = 0.5;
+export const BGM_VOLUME = 0.7;
 
 // 効果音(SE)の音量(0.0〜1.0)
-export const SE_VOLUME = 0.8;
+export const SE_VOLUME = 0.3;
