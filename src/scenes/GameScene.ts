@@ -6,6 +6,7 @@ import {
   JUMP_VELOCITY,
   SPRING_VELOCITY,
   BGM_VOLUME,
+  SE_VOLUME,
 } from '../config';
 import { parseEvents } from '../game/loaders/EventLoader';
 import { STAGES } from '../game/stages';
@@ -219,6 +220,7 @@ export class GameScene extends Phaser.Scene {
     this.isEnded = true;
     this.physics.pause(); // 敵の歩行を止める(プレイヤーの死亡演出は tween で行う)
     this.bgm?.stop(); // ゲームオーバーで BGM 停止
+    this.sound.play('se_damaged', { volume: SE_VOLUME }); // ダメージSE(単発)
     this.cameras.main.stopFollow();
     // 死亡ポーズ→落下の演出後にゲームオーバー画面。リトライはチェックポイント(ゲート/スタート)から
     this.player.playDeath(() =>
