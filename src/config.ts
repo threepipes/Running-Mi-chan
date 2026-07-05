@@ -8,7 +8,7 @@ export const CHIP_COLS = 16;
 
 // 物理値(px/秒・px/秒^2)。体感で調整可
 export const RUN_SPEED = 260;
-export const JUMP_VELOCITY = 620;
+export const JUMP_VELOCITY = 600;
 export const GRAVITY_Y = 1800;
 export const SPRING_VELOCITY = 980;
 export const ENEMY_SPEED = 100;
