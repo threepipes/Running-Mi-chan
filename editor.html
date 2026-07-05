@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RunAction マップエディタ</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: #1e1e1e; color: #eee; font-family: sans-serif; }
+      #editor-root { display: flex; flex-direction: column; height: 100vh; }
+      #editor-toolbar { padding: 6px 10px; background: #2b2b2b; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      #editor-body { display: flex; flex: 1; min-height: 0; }
+      #editor-palette { width: 180px; overflow-y: auto; background: #222; padding: 6px; }
+      #editor-canvas { flex: 1; overflow: hidden; }
+      button, select, input { font-size: 13px; }
+      .tool-btn.active, .tile-swatch.active { outline: 2px solid #4da3ff; }
+    </style>
+  </head>
+  <body>
+    <div id="editor-root">
+      <div id="editor-toolbar"></div>
+      <div id="editor-body">
+        <div id="editor-palette"></div>
+        <div id="editor-canvas"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/editor/standalone.ts"></script>
+  </body>
+</html>
