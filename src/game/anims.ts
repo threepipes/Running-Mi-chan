@@ -17,9 +17,16 @@ export function registerAnims(scene: Phaser.Scene): void {
     frames: [{ key: 'player', frame: 4 }],
     frameRate: 1,
   });
+  // kuri.png は 左向き=frame 0,1 / 右向き=frame 2,3(原作 Kuribo 準拠)
   scene.anims.create({
     key: 'kuri-walk',
     frames: scene.anims.generateFrameNumbers('kuri', { frames: [0, 1] }),
+    frameRate: 6,
+    repeat: -1,
+  });
+  scene.anims.create({
+    key: 'kuri-walk-right',
+    frames: scene.anims.generateFrameNumbers('kuri', { frames: [2, 3] }),
     frameRate: 6,
     repeat: -1,
   });

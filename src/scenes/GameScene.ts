@@ -7,6 +7,7 @@ import {
   SPRING_VELOCITY,
   BGM_VOLUME,
   SE_VOLUME,
+  ENEMY_SPEED,
 } from '../config';
 import { parseEvents } from '../game/loaders/EventLoader';
 import { STAGES } from '../game/stages';
@@ -167,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded || this.isPaused) return;
 
     this.player.update();
+    this.updateEnemies();
 
     // 即死: 前進方向の壁衝突
     if (this.player.isBlockedRight()) {
@@ -205,6 +207,23 @@ export class GameScene extends Phaser.Scene {
     this.player.resetJumpInput(); // 「続ける」タップで溜まったジャンプ入力を捨てる
     this.physics.resume();
     this.bgm?.resume(); // ポーズ前の続きから BGM を再開
+  }
+
+  // 敵が壁(タイル)に当たったら進行方向を反転させる(左右にパトロール)
+  private updateEnemies(): void {
+    for (const obj of this.enemies.getChildren()) {
+      const e = obj as Phaser.Physics.Arcade.Sprite;
+      if (!e.active) continue;
+      const body = e.body as Phaser.Physics.Arcade.Body;
+      if (body.blocked.left) {
+        e.setVelocityX(ENEMY_SPEED); // 左の壁 → 右へ
+      } else if (body.blocked.right) {
+        e.setVelocityX(-ENEMY_SPEED); // 右の壁 → 左へ
+      }
+      // 進行方向に合わせて向き画像(アニメ)を切り替える(左=kuri-walk / 右=kuri-walk-right)
+      if (body.velocity.x > 0) e.anims.play('kuri-walk-right', true);
+      else if (body.velocity.x < 0) e.anims.play('kuri-walk', true);
+    }
   }
 
   private onEnemyOverlap(enemy: Phaser.Physics.Arcade.Sprite): void {
