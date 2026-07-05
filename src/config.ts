@@ -25,3 +25,6 @@ export const BOUNCE_BOOST_WINDOW_MS = 150;
 // ジャンプ入力バッファ(ms)。着地する少し前に押したジャンプを覚えておき、
 // この猶予内に接地したら発火する。着地直前の先行入力が捨てられるのを防ぐ。
 export const JUMP_BUFFER_MS = 120;
+
+// ゲームプレイ中の BGM 音量(0.0〜1.0)
+export const BGM_VOLUME = 0.5;
