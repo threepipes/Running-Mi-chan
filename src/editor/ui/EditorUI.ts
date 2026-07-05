@@ -1,0 +1,201 @@
+import { TILE_SIZE, SHEET_COLS } from '../../config';
+import { STAGES } from '../../game/stages';
+import { EditorState } from '../EditorState';
+import { EditorScene } from '../EditorScene';
+import type { EntityType } from '../../game/loaders/EventLoader';
+import { parseEvents } from '../../game/loaders/EventLoader';
+import { parseMapRaw, serializeMap, indexToChip } from '../../game/loaders/MapSerializer';
+import { serializeEvents } from '../../game/loaders/EventSerializer';
+
+const ENTITY_TYPES: EntityType[] = ['ENEMY', 'NEEDLE', 'SPRING', 'GATE', 'STAR'];
+const ENTITY_LABEL: Record<EntityType, string> = {
+  ENEMY: '敵', NEEDLE: '針', SPRING: 'バネ', GATE: 'ゲート', STAR: 'スター',
+};
+
+/** マップエディタの DOM ツールUI。EditorScene とはメソッド呼び出しで疎結合。 */
+export class EditorUI {
+  private scene: EditorScene;
+
+  constructor(scene: EditorScene, toolbar: HTMLElement, palette: HTMLElement) {
+    this.scene = scene;
+    this.buildToolbar(toolbar);
+    this.buildPalette(palette);
+  }
+
+  private buildToolbar(bar: HTMLElement): void {
+    // 新規(幅・高さ入力)
+    const wInput = this.numberInput(100);
+    const hInput = this.numberInput(30);
+    const newBtn = this.button('新規', () => {
+      const w = parseInt(wInput.value, 10) || 100;
+      const h = parseInt(hInput.value, 10) || 30;
+      this.scene.loadState(EditorState.empty(w, h));
+    });
+
+    // 既存ステージ読込
+    const stageSel = document.createElement('select');
+    stageSel.appendChild(new Option('— 既存ステージ —', ''));
+    STAGES.forEach((s, i) => stageSel.appendChild(new Option(s.name, String(i))));
+    stageSel.addEventListener('change', () => {
+      const i = parseInt(stageSel.value, 10);
+      if (!Number.isNaN(i)) this.loadStage(STAGES[i].mapFile, STAGES[i].eventFile);
+      stageSel.value = '';
+    });
+
+    // ファイル読込(.map / .evt)
+    const mapFile = this.fileInput('.map');
+    const evtFile = this.fileInput('.evt');
+    const loadBtn = this.button('ファイル読込', () => this.loadFromFiles(mapFile, evtFile));
+
+    // 保存
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = 'map';
+    nameInput.size = 8;
+    const saveBtn = this.button('保存', () => this.save(nameInput.value || 'map'));
+
+    // ツール(タイル/各エンティティ)
+    const tileBtn = this.toolButton('タイル', () => this.scene.setTool('tile'));
+    tileBtn.classList.add('active');
+    const toolBtns = [tileBtn];
+    for (const t of ENTITY_TYPES) {
+      toolBtns.push(this.toolButton(ENTITY_LABEL[t], () => this.scene.setTool(t)));
+    }
+    // ツールボタンの active 表示切替
+    toolBtns.forEach((b) =>
+      b.addEventListener('click', () => {
+        toolBtns.forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+      }),
+    );
+
+    bar.append(
+      newBtn, this.text('幅'), wInput, this.text('高'), hInput,
+      stageSel, mapFile, evtFile, loadBtn, nameInput, saveBtn,
+      this.text('｜ツール:'), ...toolBtns,
+    );
+  }
+
+  // map.png を読み、各タイルセルをパレット swatch として並べる
+  private buildPalette(palette: HTMLElement): void {
+    const img = new Image();
+    img.src = 'assets/map.png';
+    img.onload = () => {
+      const rows = Math.floor(img.naturalHeight / TILE_SIZE);
+      const total = SHEET_COLS * rows;
+      // 消しゴム(空き)
+      palette.appendChild(this.eraseSwatch());
+      // index 1..total-1(index 0 は空きと衝突するため除外)
+      for (let index = 1; index < total; index++) {
+        palette.appendChild(this.tileSwatch(index, img.src));
+      }
+    };
+  }
+
+  private tileSwatch(index: number, url: string): HTMLElement {
+    const col = index % SHEET_COLS;
+    const row = Math.floor(index / SHEET_COLS);
+    const el = document.createElement('div');
+    el.className = 'tile-swatch';
+    el.style.cssText = `display:inline-block;width:${TILE_SIZE}px;height:${TILE_SIZE}px;margin:2px;` +
+      `background-image:url(${url});background-position:-${col * TILE_SIZE}px -${row * TILE_SIZE}px;cursor:pointer;`;
+    el.addEventListener('click', () => {
+      this.selectSwatch(el);
+      this.scene.setSelectedChip(indexToChip(index));
+    });
+    return el;
+  }
+
+  private eraseSwatch(): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'tile-swatch';
+    el.textContent = '消';
+    el.style.cssText = `display:inline-flex;align-items:center;justify-content:center;` +
+      `width:${TILE_SIZE}px;height:${TILE_SIZE}px;margin:2px;background:#444;color:#fff;cursor:pointer;`;
+    el.addEventListener('click', () => {
+      this.selectSwatch(el);
+      this.scene.setSelectedChip(0); // chip 0 = 空き(消しゴム)
+    });
+    return el;
+  }
+
+  private selectSwatch(el: HTMLElement): void {
+    el.parentElement?.querySelectorAll('.tile-swatch').forEach((s) => s.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // ---- 読込/保存 ----
+
+  private async loadStage(mapPath: string, evtPath: string): Promise<void> {
+    const [mapBuf, evtText] = await Promise.all([
+      fetch(mapPath).then((r) => r.arrayBuffer()),
+      fetch(evtPath).then((r) => r.text()),
+    ]);
+    this.applyLoaded(mapBuf, evtText);
+  }
+
+  private loadFromFiles(mapInput: HTMLInputElement, evtInput: HTMLInputElement): void {
+    const mapF = mapInput.files?.[0];
+    if (!mapF) return;
+    const evtF = evtInput.files?.[0];
+    const mapP = mapF.arrayBuffer();
+    const evtP = evtF ? evtF.text() : Promise.resolve('');
+    Promise.all([mapP, evtP]).then(([buf, txt]) => this.applyLoaded(buf, txt));
+  }
+
+  private applyLoaded(mapBuf: ArrayBuffer, evtText: string): void {
+    const raw = parseMapRaw(mapBuf);
+    const entities = parseEvents(evtText);
+    this.scene.loadState(new EditorState(raw.width, raw.height, raw.chips, entities));
+  }
+
+  private save(name: string): void {
+    const mapBytes = serializeMap(this.scene.state.chips);
+    // Uint8Array のビューを正確に切り出して Blob 化
+    const mapBlob = new Blob([mapBytes.slice()], { type: 'application/octet-stream' });
+    this.download(mapBlob, `${name}.map`);
+    const evtBlob = new Blob([serializeEvents(this.scene.state.entities)], { type: 'text/plain' });
+    this.download(evtBlob, `${name}.evt`);
+  }
+
+  private download(blob: Blob, filename: string): void {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ---- DOM ヘルパ ----
+  private button(label: string, onClick: () => void): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  private toolButton(label: string, onClick: () => void): HTMLButtonElement {
+    const b = this.button(label, onClick);
+    b.className = 'tool-btn';
+    return b;
+  }
+  private numberInput(value: number): HTMLInputElement {
+    const i = document.createElement('input');
+    i.type = 'number';
+    i.value = String(value);
+    i.size = 4;
+    i.style.width = '52px';
+    return i;
+  }
+  private fileInput(accept: string): HTMLInputElement {
+    const i = document.createElement('input');
+    i.type = 'file';
+    i.accept = accept;
+    i.style.width = '150px';
+    return i;
+  }
+  private text(t: string): HTMLSpanElement {
+    const s = document.createElement('span');
+    s.textContent = t;
+    return s;
+  }
+}
