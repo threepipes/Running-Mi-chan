@@ -10,9 +10,12 @@ export class EditorState {
   constructor(width: number, height: number, chips?: number[][], entities?: EntitySpec[]) {
     this.width = width;
     this.height = height;
-    this.grid = chips
-      ? chips.map((row) => row.slice())
-      : Array.from({ length: height }, () => new Array<number>(width).fill(0));
+    // 内部グリッドは常に height×width に正規化する。
+    // chips の次元が width/height と一致しなくても getTile/setTile が
+    // undefined アクセスで落ちないようにするため。
+    this.grid = Array.from({ length: height }, (_, y) =>
+      Array.from({ length: width }, (_, x) => chips?.[y]?.[x] ?? 0),
+    );
     this.ents = entities ? entities.map((e) => ({ ...e })) : [];
   }
 

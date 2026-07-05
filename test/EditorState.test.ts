@@ -32,4 +32,23 @@ describe('EditorState', () => {
     expect(s.getTile(1, 0)).toBe(2);
     expect(s.entities.length).toBe(1);
   });
+
+  it('負の座標は境界外として無視/0 を返す', () => {
+    const s = EditorState.empty(3, 2);
+    expect(s.getTile(-1, 0)).toBe(0);
+    s.setTile(-1, 0, 5); // 境界外: 無視
+    expect(s.getTile(-1, 0)).toBe(0);
+  });
+
+  it('同一タイルに異なる type を配置でき entitiesAt が複数件返す', () => {
+    const s = EditorState.empty(3, 2);
+    s.toggleEntity('ENEMY', 1, 1);
+    s.toggleEntity('SPRING', 1, 1);
+    expect(s.entitiesAt(1, 1).length).toBe(2);
+  });
+
+  it('chips の次元が不整合でも落ちず境界外相当は 0 を返す', () => {
+    const s = new EditorState(3, 2, [[1]]);
+    expect(s.getTile(2, 1)).toBe(0);
+  });
 });
