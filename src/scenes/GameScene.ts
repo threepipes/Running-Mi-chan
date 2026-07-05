@@ -1,5 +1,12 @@
 import Phaser from 'phaser';
-import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, JUMP_VELOCITY, SPRING_VELOCITY } from '../config';
+import {
+  TILE_SIZE,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  JUMP_VELOCITY,
+  SPRING_VELOCITY,
+  BGM_VOLUME,
+} from '../config';
 import { parseEvents } from '../game/loaders/EventLoader';
 import { STAGES } from '../game/stages';
 import { recordClear } from '../game/Progress';
@@ -33,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private resumeY?: number;
   private resumeUsedGate = false;
   private progressBar!: ProgressBar;
+  private bgm?: Phaser.Sound.BaseSound;
 
   constructor() {
     super('Game');
@@ -115,6 +123,15 @@ export class GameScene extends Phaser.Scene {
 
     this.progressBar = new ProgressBar(this, this.goalX);
 
+    // BGM: ゲームプレイ中はループ再生。ポーズで一時停止、クリア/オーバーで停止する。
+    // シーン終了(タイトル/ステージ選択への遷移・リスタート)時は破棄して鳴り続け/多重再生を防ぐ。
+    this.bgm = this.sound.add('bgm', { loop: true, volume: BGM_VOLUME });
+    this.bgm.play();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.bgm?.destroy();
+      this.bgm = undefined;
+    });
+
     // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
     if (import.meta.env.DEV) {
       (window as unknown as { __scene?: GameScene }).__scene = this;
@@ -168,6 +185,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded || this.isPaused) return;
     this.isPaused = true;
     this.physics.pause();
+    this.bgm?.pause(); // ポーズ中は BGM を止め、続けるで再開する
     this.pauseObjects = showPause(this, {
       onContinue: () => this.resumeGame(),
       onRestart: () => this.scene.restart({ stageIndex: this.stageIndex }),
@@ -182,6 +200,7 @@ export class GameScene extends Phaser.Scene {
     this.pauseObjects = [];
     this.player.resetJumpInput(); // 「続ける」タップで溜まったジャンプ入力を捨てる
     this.physics.resume();
+    this.bgm?.resume(); // ポーズ前の続きから BGM を再開
   }
 
   private onEnemyOverlap(enemy: Phaser.Physics.Arcade.Sprite): void {
@@ -199,6 +218,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.physics.pause(); // 敵の歩行を止める(プレイヤーの死亡演出は tween で行う)
+    this.bgm?.stop(); // ゲームオーバーで BGM 停止
     this.cameras.main.stopFollow();
     // 死亡ポーズ→落下の演出後にゲームオーバー画面。リトライはチェックポイント(ゲート/スタート)から
     this.player.playDeath(() =>
@@ -218,6 +238,7 @@ export class GameScene extends Phaser.Scene {
   private clear(): void {
     if (this.isEnded) return;
     this.isEnded = true;
+    this.bgm?.stop(); // ゴール(クリア)で BGM 停止(原作準拠)
     recordClear(this.stageIndex, !this.usedGate);
 
     // 原作準拠のクリア演出: みーちゃんは止めずに右へ走り抜けさせつつ約0.8秒で暗転し、
