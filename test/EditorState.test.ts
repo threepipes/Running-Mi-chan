@@ -52,6 +52,15 @@ describe('EditorState', () => {
     expect(s.getTile(2, 1)).toBe(0);
   });
 
+  it('addEntity は重複追加せず冪等(ドラッグ連続配置向け)', () => {
+    const s = EditorState.empty(3, 2);
+    s.addEntity('ENEMY', 1, 1);
+    s.addEntity('ENEMY', 1, 1); // 同種同座標は無視
+    expect(s.entitiesAt(1, 1).length).toBe(1);
+    s.addEntity('SPRING', 1, 1); // 別種は追加される
+    expect(s.entitiesAt(1, 1).length).toBe(2);
+  });
+
   it('removeEntitiesAt は指定タイルのエンティティを種別問わず全削除する', () => {
     const s = EditorState.empty(3, 2);
     s.toggleEntity('ENEMY', 1, 1);

@@ -46,6 +46,13 @@ export class EditorState {
     else this.ents.push({ type, tileX: x, tileY: y });
   }
 
+  /** 指定タイルに指定種別のエンティティを配置する。既に同じものがあれば何もしない(ドラッグ連続配置向け)。 */
+  addEntity(type: EntityType, x: number, y: number): void {
+    if (!this.inBounds(x, y)) return;
+    if (this.ents.some((e) => e.type === type && e.tileX === x && e.tileY === y)) return;
+    this.ents.push({ type, tileX: x, tileY: y });
+  }
+
   /** 指定タイルのエンティティを種別を問わず全て削除する(消しゴム用)。 */
   removeEntitiesAt(x: number, y: number): void {
     this.ents = this.ents.filter((e) => !(e.tileX === x && e.tileY === y));
