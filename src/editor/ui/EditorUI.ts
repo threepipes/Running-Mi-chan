@@ -12,6 +12,15 @@ const ENTITY_LABEL: Record<EntityType, string> = {
   ENEMY: '敵', NEEDLE: '針', SPRING: 'バネ', GATE: 'ゲート', STAR: 'スター',
 };
 
+// パレット表示用のゲーム画像パス。各画像の左上 TILE_SIZE 角がゲームでの表示フレーム(frame0)。
+// STAR はゲーム側で未描画=画像が無いため色マーカーで代替。
+const ENTITY_ASSET: Partial<Record<EntityType, string>> = {
+  ENEMY: 'assets/kuri.png',
+  NEEDLE: 'assets/toge.png',
+  SPRING: 'assets/jump.png',
+  GATE: 'assets/gate.png',
+};
+
 // number 色(0xRRGGBB)を CSS の #rrggbb へ
 function cssColor(n: number): string {
   return '#' + n.toString(16).padStart(6, '0');
@@ -71,6 +80,11 @@ export class EditorUI {
   // 左パレット: エンティティと(map.png由来の)タイルを同じ場所から選べるようにする
   private buildPalette(palette: HTMLElement): void {
     this.palette = palette;
+    // swatch を隙間なく詰めて並べる(inline-block の空白/ベースラインずれを避ける)
+    palette.style.display = 'flex';
+    palette.style.flexWrap = 'wrap';
+    palette.style.alignContent = 'flex-start';
+    palette.style.gap = '3px';
 
     // エンティティ節
     palette.appendChild(this.sectionHeader('エンティティ'));
@@ -106,19 +120,32 @@ export class EditorUI {
   private sectionHeader(title: string): HTMLElement {
     const h = document.createElement('div');
     h.textContent = title;
-    h.style.cssText = 'width:100%;margin:6px 2px 2px;font-size:12px;color:#aaa;';
+    // flex-basis:100% で改行させ、次の swatch 群を左端から並べる
+    h.style.cssText = 'flex:0 0 100%;margin:4px 0 0;font-size:12px;color:#aaa;';
     return h;
   }
 
-  // エンティティの選択 swatch(色は Scene の ENTITY_STYLE と共有)
+  // swatch 共通スタイル(32x32 固定・余白は親の gap で統一・ピクセルアートを鮮明に)
+  private swatchBase(): string {
+    return `flex:0 0 auto;box-sizing:border-box;width:${TILE_SIZE}px;height:${TILE_SIZE}px;` +
+      `cursor:pointer;background-repeat:no-repeat;image-rendering:pixelated;`;
+  }
+
+  // エンティティの選択 swatch(ゲームと同じ画像。画像が無い STAR は色マーカー)
   private entitySwatch(type: EntityType): HTMLElement {
     const el = document.createElement('div');
     el.className = 'tile-swatch';
-    el.textContent = ENTITY_LABEL[type];
     el.title = `${ENTITY_LABEL[type]}(同じ場所を再クリックで削除)`;
-    el.style.cssText = `display:inline-flex;align-items:center;justify-content:center;` +
-      `width:${TILE_SIZE}px;height:${TILE_SIZE}px;margin:2px;font-size:11px;cursor:pointer;` +
-      `background:${cssColor(ENTITY_STYLE[type].color)};color:#fff;`;
+    const asset = ENTITY_ASSET[type];
+    if (asset) {
+      // 各画像の左上 32x32 がゲームでの表示フレーム
+      el.style.cssText = this.swatchBase() + `background-image:url(${asset});background-position:0 0;`;
+    } else {
+      el.textContent = ENTITY_LABEL[type];
+      el.style.cssText = this.swatchBase() +
+        `display:flex;align-items:center;justify-content:center;font-size:11px;` +
+        `background:${cssColor(ENTITY_STYLE[type].color)};color:#fff;`;
+    }
     el.addEventListener('click', () => {
       this.selectSwatch(el);
       this.scene.setTool(type);
@@ -131,8 +158,8 @@ export class EditorUI {
     const row = Math.floor(index / SHEET_COLS);
     const el = document.createElement('div');
     el.className = 'tile-swatch';
-    el.style.cssText = `display:inline-block;width:${TILE_SIZE}px;height:${TILE_SIZE}px;margin:2px;` +
-      `background-image:url(${url});background-position:-${col * TILE_SIZE}px -${row * TILE_SIZE}px;cursor:pointer;`;
+    el.style.cssText = this.swatchBase() +
+      `background-image:url(${url});background-position:-${col * TILE_SIZE}px -${row * TILE_SIZE}px;`;
     el.addEventListener('click', () => {
       this.selectSwatch(el);
       this.scene.setSelectedChip(indexToChip(index));
@@ -144,8 +171,8 @@ export class EditorUI {
     const el = document.createElement('div');
     el.className = 'tile-swatch';
     el.textContent = '消';
-    el.style.cssText = `display:inline-flex;align-items:center;justify-content:center;` +
-      `width:${TILE_SIZE}px;height:${TILE_SIZE}px;margin:2px;background:#444;color:#fff;cursor:pointer;`;
+    el.style.cssText = this.swatchBase() +
+      `display:flex;align-items:center;justify-content:center;background:#444;color:#fff;`;
     el.addEventListener('click', () => {
       this.selectSwatch(el);
       this.scene.setSelectedChip(0); // chip 0 = 空き(消しゴム)

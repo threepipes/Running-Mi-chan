@@ -9,13 +9,22 @@ export const EDITOR_VIEW_H = 640;
 
 export type EditorTool = 'tile' | EntityType;
 
-// エンティティ表示スタイル(色 + 短ラベル)。エディタUIのパレットとも共有する
+// エンティティ表示スタイル(色 + 短ラベル)。ゲーム画像が無い種別(STAR)のフォールバック表示と
+// エディタUIのパレットで共有する。
 export const ENTITY_STYLE: Record<EntityType, { color: number; label: string }> = {
   ENEMY: { color: 0xe74c3c, label: '敵' },
   NEEDLE: { color: 0x95a5a6, label: '針' },
   SPRING: { color: 0x27ae60, label: 'バ' },
   GATE: { color: 0x2980b9, label: '門' },
   STAR: { color: 0xf1c40f, label: '★' },
+};
+
+// 各エンティティのゲーム内テクスチャ(LevelBuilder と一致)。STAR はゲーム側で未描画のため画像無し。
+export const ENTITY_TEXTURE: Partial<Record<EntityType, { key: string; frame?: number }>> = {
+  ENEMY: { key: 'kuri', frame: 0 },
+  NEEDLE: { key: 'toge' },
+  SPRING: { key: 'spring', frame: 0 },
+  GATE: { key: 'gate' },
 };
 
 export class EditorScene extends Phaser.Scene {
@@ -36,6 +45,11 @@ export class EditorScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image('mapTiles', 'assets/map.png');
+    // エンティティ用のゲーム画像(BootScene と同じキー/パス)
+    this.load.image('toge', 'assets/toge.png');
+    this.load.image('gate', 'assets/gate.png');
+    this.load.spritesheet('kuri', 'assets/kuri.png', { frameWidth: TILE_SIZE, frameHeight: TILE_SIZE });
+    this.load.spritesheet('spring', 'assets/jump.png', { frameWidth: TILE_SIZE, frameHeight: TILE_SIZE });
   }
 
   create(): void {
@@ -103,16 +117,24 @@ export class EditorScene extends Phaser.Scene {
   private renderEntities(): void {
     this.entityLayer.removeAll(true);
     for (const e of this.state.entities) {
-      const st = ENTITY_STYLE[e.type];
       const px = e.tileX * TILE_SIZE;
       const py = e.tileY * TILE_SIZE;
-      const rect = this.add
-        .rectangle(px, py, TILE_SIZE, TILE_SIZE, st.color, 0.85)
-        .setOrigin(0, 0);
-      const label = this.add
-        .text(px + TILE_SIZE / 2, py + TILE_SIZE / 2, st.label, { fontSize: '16px', color: '#fff' })
-        .setOrigin(0.5);
-      this.entityLayer.add([rect, label]);
+      const tex = ENTITY_TEXTURE[e.type];
+      if (tex) {
+        // ゲームと同じ画像で表示
+        const img = this.add.image(px, py, tex.key, tex.frame).setOrigin(0, 0);
+        this.entityLayer.add(img);
+      } else {
+        // 画像が無い種別(STAR)は色マーカー+ラベルで表示
+        const st = ENTITY_STYLE[e.type];
+        const rect = this.add
+          .rectangle(px, py, TILE_SIZE, TILE_SIZE, st.color, 0.85)
+          .setOrigin(0, 0);
+        const label = this.add
+          .text(px + TILE_SIZE / 2, py + TILE_SIZE / 2, st.label, { fontSize: '16px', color: '#fff' })
+          .setOrigin(0.5);
+        this.entityLayer.add([rect, label]);
+      }
     }
   }
 
