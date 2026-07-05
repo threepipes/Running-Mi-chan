@@ -33,6 +33,8 @@ export class EditorScene extends Phaser.Scene {
 
   private tool: EditorTool = 'tile';
   private selectedChip = 1;
+  // ドラッグ中に同じセルを何度も処理しないための直近編集セル(ストローク単位)
+  private lastEditTile: { x: number; y: number } | null = null;
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map!: Phaser.Tilemaps.Tilemap;
   private entityLayer!: Phaser.GameObjects.Container;
@@ -178,22 +180,31 @@ export class EditorScene extends Phaser.Scene {
         this.cameras.main.scrollY -= (p.y - p.prevPosition.y);
         return;
       }
-      if (p.isDown && (this.tool === 'tile' || this.tool === 'erase')) this.paintAt(p);
+      if (p.isDown && !space.isDown) this.applyToolAt(p); // 全ツールでドラッグ連続適用
     });
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (space.isDown) return; // パン中は編集しない
-      this.editAt(p);
+      this.lastEditTile = null; // 新しいストローク開始
+      this.applyToolAt(p);
+    });
+    this.input.on('pointerup', () => {
+      this.lastEditTile = null;
     });
   }
 
   // ポインタ位置のタイル座標に対して、現在ツールの編集を適用
-  private editAt(p: Phaser.Input.Pointer): void {
+  // 現在ツールをポインタ位置に適用する。クリックにもドラッグにも使う。
+  // ペイント同様、同じセルを跨いで通っても1ストロークにつき1セル1回だけ処理する。
+  private applyToolAt(p: Phaser.Input.Pointer): void {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
+    if (this.lastEditTile && this.lastEditTile.x === tx && this.lastEditTile.y === ty) return;
+    this.lastEditTile = { x: tx, y: ty };
     if (this.tool === 'tile' || this.tool === 'erase') {
       this.paintAt(p);
     } else {
-      this.state.toggleEntity(this.tool, tx, ty);
+      // エンティティはドラッグで連続配置(削除は消しゴム)。既にあれば冪等で何もしない。
+      this.state.addEntity(this.tool, tx, ty);
       this.renderEntities();
     }
   }
