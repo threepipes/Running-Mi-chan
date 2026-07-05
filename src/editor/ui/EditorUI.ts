@@ -173,9 +173,10 @@ export class EditorUI {
     el.textContent = '消';
     el.style.cssText = this.swatchBase() +
       `display:flex;align-items:center;justify-content:center;background:#444;color:#fff;`;
+    el.title = 'タイルとエンティティを消す';
     el.addEventListener('click', () => {
       this.selectSwatch(el);
-      this.scene.setSelectedChip(0); // chip 0 = 空き(消しゴム)
+      this.scene.setTool('erase'); // タイル・エンティティ両方を消す消しゴム
     });
     return el;
   }

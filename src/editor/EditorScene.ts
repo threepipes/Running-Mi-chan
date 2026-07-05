@@ -7,7 +7,7 @@ import type { EntityType } from '../game/loaders/EventLoader';
 export const EDITOR_VIEW_W = 960;
 export const EDITOR_VIEW_H = 640;
 
-export type EditorTool = 'tile' | EntityType;
+export type EditorTool = 'tile' | 'erase' | EntityType;
 
 // エンティティ表示スタイル(色 + 短ラベル)。ゲーム画像が無い種別(STAR)のフォールバック表示と
 // エディタUIのパレットで共有する。
@@ -178,7 +178,7 @@ export class EditorScene extends Phaser.Scene {
         this.cameras.main.scrollY -= (p.y - p.prevPosition.y);
         return;
       }
-      if (p.isDown && this.tool === 'tile') this.paintAt(p);
+      if (p.isDown && (this.tool === 'tile' || this.tool === 'erase')) this.paintAt(p);
     });
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (space.isDown) return; // パン中は編集しない
@@ -190,7 +190,7 @@ export class EditorScene extends Phaser.Scene {
   private editAt(p: Phaser.Input.Pointer): void {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
-    if (this.tool === 'tile') {
+    if (this.tool === 'tile' || this.tool === 'erase') {
       this.paintAt(p);
     } else {
       this.state.toggleEntity(this.tool, tx, ty);
@@ -198,9 +198,21 @@ export class EditorScene extends Phaser.Scene {
     }
   }
 
+  // タイル/消しゴムのブラシ適用。ドラッグでも呼ばれる。消しゴムはタイルとエンティティ両方を消す。
   private paintAt(p: Phaser.Input.Pointer): void {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
+    if (this.tool === 'erase') {
+      if (this.state.getTile(tx, ty) !== 0) {
+        this.state.setTile(tx, ty, 0);
+        this.drawTile(tx, ty);
+      }
+      if (this.state.entitiesAt(tx, ty).length > 0) {
+        this.state.removeEntitiesAt(tx, ty);
+        this.renderEntities();
+      }
+      return;
+    }
     if (this.state.getTile(tx, ty) === this.selectedChip) return;
     this.state.setTile(tx, ty, this.selectedChip);
     this.drawTile(tx, ty);

@@ -46,6 +46,11 @@ export class EditorState {
     else this.ents.push({ type, tileX: x, tileY: y });
   }
 
+  /** 指定タイルのエンティティを種別を問わず全て削除する(消しゴム用)。 */
+  removeEntitiesAt(x: number, y: number): void {
+    this.ents = this.ents.filter((e) => !(e.tileX === x && e.tileY === y));
+  }
+
   get chips(): number[][] {
     return this.grid;
   }

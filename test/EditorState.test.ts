@@ -51,4 +51,14 @@ describe('EditorState', () => {
     const s = new EditorState(3, 2, [[1]]);
     expect(s.getTile(2, 1)).toBe(0);
   });
+
+  it('removeEntitiesAt は指定タイルのエンティティを種別問わず全削除する', () => {
+    const s = EditorState.empty(3, 2);
+    s.toggleEntity('ENEMY', 1, 1);
+    s.toggleEntity('SPRING', 1, 1);
+    s.toggleEntity('GATE', 2, 0); // 別タイルは残す
+    s.removeEntitiesAt(1, 1);
+    expect(s.entitiesAt(1, 1)).toEqual([]);
+    expect(s.entitiesAt(2, 0).length).toBe(1);
+  });
 });
