@@ -9,8 +9,8 @@ export const EDITOR_VIEW_H = 640;
 
 export type EditorTool = 'tile' | EntityType;
 
-// エンティティ表示スタイル(色 + 1文字ラベル)
-const ENTITY_STYLE: Record<EntityType, { color: number; label: string }> = {
+// エンティティ表示スタイル(色 + 短ラベル)。エディタUIのパレットとも共有する
+export const ENTITY_STYLE: Record<EntityType, { color: number; label: string }> = {
   ENEMY: { color: 0xe74c3c, label: '敵' },
   NEEDLE: { color: 0x95a5a6, label: '針' },
   SPRING: { color: 0x27ae60, label: 'バ' },

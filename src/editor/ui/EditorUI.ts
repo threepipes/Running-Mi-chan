@@ -1,7 +1,7 @@
 import { TILE_SIZE, SHEET_COLS } from '../../config';
 import { STAGES } from '../../game/stages';
 import { EditorState } from '../EditorState';
-import { EditorScene } from '../EditorScene';
+import { EditorScene, ENTITY_STYLE } from '../EditorScene';
 import type { EntityType } from '../../game/loaders/EventLoader';
 import { parseEvents } from '../../game/loaders/EventLoader';
 import { parseMapRaw, serializeMap, indexToChip } from '../../game/loaders/MapSerializer';
@@ -12,9 +12,15 @@ const ENTITY_LABEL: Record<EntityType, string> = {
   ENEMY: '敵', NEEDLE: '針', SPRING: 'バネ', GATE: 'ゲート', STAR: 'スター',
 };
 
+// number 色(0xRRGGBB)を CSS の #rrggbb へ
+function cssColor(n: number): string {
+  return '#' + n.toString(16).padStart(6, '0');
+}
+
 /** マップエディタの DOM ツールUI。EditorScene とはメソッド呼び出しで疎結合。 */
 export class EditorUI {
   private scene: EditorScene;
+  private palette!: HTMLElement;
 
   constructor(scene: EditorScene, toolbar: HTMLElement, palette: HTMLElement) {
     this.scene = scene;
@@ -55,40 +61,37 @@ export class EditorUI {
     nameInput.size = 8;
     const saveBtn = this.button('保存', () => this.save(nameInput.value || 'map'));
 
-    // ツール(タイル/各エンティティ)
-    const tileBtn = this.toolButton('タイル', () => this.scene.setTool('tile'));
-    tileBtn.classList.add('active');
-    const toolBtns = [tileBtn];
-    for (const t of ENTITY_TYPES) {
-      toolBtns.push(this.toolButton(ENTITY_LABEL[t], () => this.scene.setTool(t)));
-    }
-    // ツールボタンの active 表示切替
-    toolBtns.forEach((b) =>
-      b.addEventListener('click', () => {
-        toolBtns.forEach((x) => x.classList.remove('active'));
-        b.classList.add('active');
-      }),
-    );
-
+    // ツールバーはファイル操作のみ。何を置くか(タイル/エンティティ)は左パレットで選ぶ。
     bar.append(
       newBtn, this.text('幅'), wInput, this.text('高'), hInput,
       stageSel, mapFile, evtFile, loadBtn, nameInput, saveBtn,
-      this.text('｜ツール:'), ...toolBtns,
     );
   }
 
-  // map.png を読み、各タイルセルをパレット swatch として並べる
+  // 左パレット: エンティティと(map.png由来の)タイルを同じ場所から選べるようにする
   private buildPalette(palette: HTMLElement): void {
+    this.palette = palette;
+
+    // エンティティ節
+    palette.appendChild(this.sectionHeader('エンティティ'));
+    for (const t of ENTITY_TYPES) {
+      palette.appendChild(this.entitySwatch(t));
+    }
+
+    // タイル節
+    palette.appendChild(this.sectionHeader('タイル'));
+    palette.appendChild(this.eraseSwatch());
+
     const img = new Image();
     img.src = 'assets/map.png';
     img.onload = () => {
       const rows = Math.floor(img.naturalHeight / TILE_SIZE);
       const total = SHEET_COLS * rows;
-      // 消しゴム(空き)
-      palette.appendChild(this.eraseSwatch());
       // index 1..total-1(index 0 は空きと衝突するため除外)
       for (let index = 1; index < total; index++) {
-        palette.appendChild(this.tileSwatch(index, img.src));
+        const sw = this.tileSwatch(index, img.src);
+        palette.appendChild(sw);
+        if (index === 1) this.selectSwatch(sw); // 初期選択(Scene 既定の chip 1 タイルに合わせる)
       }
     };
     // 読込失敗時はパレット領域にエラーを表示(無反応にしない)
@@ -98,6 +101,29 @@ export class EditorUI {
       msg.textContent = 'タイル画像(assets/map.png)の読込に失敗しました';
       palette.appendChild(msg);
     };
+  }
+
+  private sectionHeader(title: string): HTMLElement {
+    const h = document.createElement('div');
+    h.textContent = title;
+    h.style.cssText = 'width:100%;margin:6px 2px 2px;font-size:12px;color:#aaa;';
+    return h;
+  }
+
+  // エンティティの選択 swatch(色は Scene の ENTITY_STYLE と共有)
+  private entitySwatch(type: EntityType): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'tile-swatch';
+    el.textContent = ENTITY_LABEL[type];
+    el.title = `${ENTITY_LABEL[type]}(同じ場所を再クリックで削除)`;
+    el.style.cssText = `display:inline-flex;align-items:center;justify-content:center;` +
+      `width:${TILE_SIZE}px;height:${TILE_SIZE}px;margin:2px;font-size:11px;cursor:pointer;` +
+      `background:${cssColor(ENTITY_STYLE[type].color)};color:#fff;`;
+    el.addEventListener('click', () => {
+      this.selectSwatch(el);
+      this.scene.setTool(type);
+    });
+    return el;
   }
 
   private tileSwatch(index: number, url: string): HTMLElement {
@@ -127,8 +153,9 @@ export class EditorUI {
     return el;
   }
 
+  // パレット全体で単一選択(タイル/エンティティ/消 を跨いで排他)
   private selectSwatch(el: HTMLElement): void {
-    el.parentElement?.querySelectorAll('.tile-swatch').forEach((s) => s.classList.remove('active'));
+    this.palette.querySelectorAll('.tile-swatch.active').forEach((s) => s.classList.remove('active'));
     el.classList.add('active');
   }
 
@@ -185,11 +212,6 @@ export class EditorUI {
     const b = document.createElement('button');
     b.textContent = label;
     b.addEventListener('click', onClick);
-    return b;
-  }
-  private toolButton(label: string, onClick: () => void): HTMLButtonElement {
-    const b = this.button(label, onClick);
-    b.className = 'tool-btn';
     return b;
   }
   private numberInput(value: number): HTMLInputElement {
