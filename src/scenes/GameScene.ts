@@ -42,6 +42,7 @@ export class GameScene extends Phaser.Scene {
   private resumeUsedGate = false;
   private progressBar!: ProgressBar;
   private bgm?: Phaser.Sound.BaseSound;
+  private clearSe?: Phaser.Sound.BaseSound;
 
   constructor() {
     super('Game');
@@ -131,6 +132,8 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.bgm?.destroy();
       this.bgm = undefined;
+      this.clearSe?.destroy(); // クリアSE(長め)がタイトル遷移後も鳴り続けないように破棄
+      this.clearSe = undefined;
     });
 
     // 開発時のみ: E2Eスモークテスト用にシーンを公開(本番ビルドでは除去される)
@@ -241,6 +244,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.bgm?.stop(); // ゴール(クリア)で BGM 停止(原作準拠)
+    this.clearSe = this.sound.add('se_clear', { volume: SE_VOLUME });
+    this.clearSe.play(); // クリアSE
     recordClear(this.stageIndex, !this.usedGate);
 
     // 原作準拠のクリア演出: みーちゃんは止めずに右へ走り抜けさせつつ約0.8秒で暗転し、

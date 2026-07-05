@@ -7,6 +7,7 @@ import {
   BOUNCE_BOOST_WINDOW_MS,
   MAX_FALL_VELOCITY,
   JUMP_BUFFER_MS,
+  SE_VOLUME,
 } from '../config';
 
 /**
@@ -90,6 +91,7 @@ export class PlayerController {
     if (onGround && now <= this.jumpBufferedUntil) {
       this.sprite.setVelocityY(-JUMP_VELOCITY);
       this.jumpBufferedUntil = 0;
+      this.scene.sound.play('se_jump', { volume: SE_VOLUME }); // ジャンプSE(単発)
     }
 
     this.sprite.anims.play(onGround ? 'run' : 'jump', true);
