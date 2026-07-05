@@ -152,15 +152,23 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private setupInput(): void {
-    // マウスホイールで横スクロール
+    const space = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // ホイール: 既定は上下スクロール(横成分dxも反映=トラックパッド対応)。Shift併用で横スクロール。
     this.input.on(
       'wheel',
-      (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
-        this.cameras.main.scrollX += dy;
+      (p: Phaser.Input.Pointer, _o: unknown, dx: number, dy: number) => {
+        const cam = this.cameras.main;
+        // Shift 判定はホイールイベント自身の修飾キーで行う(キーボードフォーカス非依存)
+        const shiftHeld = (p.event as WheelEvent | undefined)?.shiftKey ?? false;
+        if (shiftHeld) {
+          cam.scrollX += dy;
+        } else {
+          cam.scrollX += dx;
+          cam.scrollY += dy;
+        }
       },
     );
-    // スペース押下 + ドラッグでパン
-    const space = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // スペース押下 + ドラッグでパン(上下左右自由)
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       const wx = p.worldX;
       const wy = p.worldY;
