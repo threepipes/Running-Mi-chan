@@ -40,6 +40,38 @@ window.addEventListener('orientationchange', fitToViewport);
 window.visualViewport?.addEventListener('resize', fitToViewport);
 window.visualViewport?.addEventListener('scroll', fitToViewport);
 
+// --- iOS Safari のオーディオ対策 ---
+// (A) WebAudio を「メディア」区分にして消音スイッチ非依存で鳴らす(iOS 16.4+)。
+//     Web Audio はデバイスがミュートだと鳴らない(HTML5音声とは非対称)ため。
+type NavigatorWithAudioSession = Navigator & { audioSession?: { type: string } };
+const nav = navigator as NavigatorWithAudioSession;
+if (nav.audioSession) {
+  try {
+    nav.audioSession.type = 'playback';
+  } catch {
+    /* 未対応環境は無視 */
+  }
+}
+
+// (B) 初回のユーザー操作、および復帰(フォーカス/可視化)時に AudioContext を確実に resume/unlock する。
+//     iOS では context が suspended/interrupted になり、Phaser の自動解除が漏れることがあるため保険をかける。
+function resumeAudio(): void {
+  const sound = game.sound as Phaser.Sound.WebAudioSoundManager;
+  const ctx = sound.context as AudioContext | undefined;
+  if (ctx && ctx.state !== 'running') {
+    ctx.resume().catch(() => {});
+  }
+  if (game.sound.locked) {
+    game.sound.unlock();
+  }
+}
+for (const ev of ['pointerdown', 'touchend', 'keydown'] as const) {
+  window.addEventListener(ev, resumeAudio);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') resumeAudio();
+});
+
 // 開発時のみ: E2Eスモークテスト用にゲームインスタンスを公開(本番ビルドでは除去される)
 if (import.meta.env.DEV) {
   (window as unknown as { __game?: Phaser.Game }).__game = game;
