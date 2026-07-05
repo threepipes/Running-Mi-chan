@@ -103,3 +103,7 @@ vite.config.ts       … マルチページ化(index.html + editor.html)
 
 - `EditorScene` をゲームの Scene リストに登録し、クリア後/デバッグから `scene.start('Editor')` で起動。
 - DOMツールUIはゲーム canvas に重ねて表示。`src/editor/` はそのまま再利用。
+
+## その他構想
+
+- マップにメタデータ (マップタイトルや作成者、作成時刻等) を持たせる
