@@ -47,6 +47,16 @@ npm run dev
 
 コミット前は `npm run typecheck` / `npm test` / `npm run build` が通ることを確認してください。
 
+## マップエディタ(スタンドアロン)
+
+開発サーバ起動中(`npm run dev`)に `http://localhost:5173/editor.html` を開くとマップエディタが使えます。
+
+- 左のパレットでタイルを選び、キャンバスに左ドラッグで地形を描画(「消」で消去)。
+- 上部ツールで敵/針/バネ/ゲート/スターを選び、クリックで配置(同じ場所を再クリックで削除)。
+- ホイールで横スクロール、スペース押下＋ドラッグでパン。
+- 「既存ステージ」から読込、または `.map`/`.evt` をファイル指定で読込。
+- 「保存」で `.map`(バイナリ)と `.evt`(CSV)をダウンロード。`public/levels/` に置けばゲームで使えます。
+
 ## デプロイ
 
 `main` ブランチへの push で、GitHub Actions（`.github/workflows/deploy.yml`）が `npm ci → npm run build` を実行し、`dist/` を GitHub Pages に自動デプロイします。手動実行（`workflow_dispatch`）も可能です。
