@@ -70,8 +70,9 @@ export class GameScene extends Phaser.Scene {
 
     // 背景(パララックス)
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setScrollFactor(0).setDepth(-10);
+    // マップを下方向に拡張した分、山(遠景)が中空に浮いて見えるので一段(1タイル)下げる
     this.add
-      .image(0, GAME_HEIGHT, 'yama')
+      .image(0, GAME_HEIGHT + TILE_SIZE, 'yama')
       .setOrigin(0, 1)
       .setScrollFactor(0.3)
       .setDepth(-9);
