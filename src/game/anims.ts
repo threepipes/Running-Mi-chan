@@ -30,4 +30,12 @@ export function registerAnims(scene: Phaser.Scene): void {
     frameRate: 6,
     repeat: -1,
   });
+  // バネ(jump.png): 休止=frame 0。踏んだ瞬間に 1→2→3 と1フレームずつ切り替え、
+  // 最終フレーム(4番目)で停止する(repeat なし)。
+  scene.anims.create({
+    key: 'spring-bounce',
+    frames: scene.anims.generateFrameNumbers('spring', { frames: [1, 2, 3] }),
+    frameRate: 60,
+    repeat: 0,
+  });
 }
