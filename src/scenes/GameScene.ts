@@ -87,7 +87,8 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
     // プレイヤー初期位置。リトライ時は resume(チェックポイント)から、初回はスタートから
-    this.startY = this.worldHeight - TILE_SIZE * 4;
+    // マップ下端に地面3段を足したぶん、worldHeight 基準の spawn も3段上げて地面上端の少し上に出す
+    this.startY = this.worldHeight - TILE_SIZE * 7;
     const spawnX = this.resumeX ?? this.startX;
     const spawnY = this.resumeY ?? this.startY;
     this.checkpointX = spawnX;
