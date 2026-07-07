@@ -151,9 +151,11 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player.sprite, this.hazards, () => {
       this.die();
     });
-    this.physics.add.overlap(this.player.sprite, this.springs, () => {
+    this.physics.add.overlap(this.player.sprite, this.springs, (_p, s) => {
       if (this.isEnded) return;
       this.player.bounce(SPRING_VELOCITY);
+      // 踏んだバネをアニメ(1→2→3で停止)。true=再生中は再スタートしない(overlap多重発火対策)
+      (s as Phaser.Physics.Arcade.Sprite).anims.play('spring-bounce', true);
     });
     this.physics.add.overlap(this.player.sprite, this.gates, (_p, g) => {
       const gate = g as Phaser.Physics.Arcade.Sprite;
