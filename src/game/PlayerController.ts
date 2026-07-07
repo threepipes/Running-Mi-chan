@@ -124,25 +124,32 @@ export class PlayerController {
   }
 
   /** 死亡演出: 死亡ポーズ(frame7)→少し跳ねてから画面下へ落下→onComplete(原作 gameoverAnimation 準拠) */
-  playDeath(onComplete: () => void): void {
+  playDeath(onComplete: () => void, skipHop = false): void {
     this.sprite.setVelocity(0, 0);
     this.sprite.anims.stop();
     this.sprite.setFrame(7);
     const fallY = this.scene.cameras.main.scrollY + GAME_HEIGHT + 80;
+    // 画面下へ落下して隠れる tween
+    const fall = () =>
+      this.scene.tweens.add({
+        targets: this.sprite,
+        y: fallY,
+        duration: 500,
+        ease: 'Quad.easeIn',
+        onComplete,
+      });
+    if (skipHop) {
+      // 落下死: 既に画面下へ落ちているので飛び上がらず、そのまま下へ
+      fall();
+      return;
+    }
+    // 通常死: 少し飛び上がってから落下
     this.scene.tweens.add({
       targets: this.sprite,
       y: this.sprite.y - 70,
       duration: 200,
       ease: 'Quad.easeOut',
-      onComplete: () => {
-        this.scene.tweens.add({
-          targets: this.sprite,
-          y: fallY,
-          duration: 500,
-          ease: 'Quad.easeIn',
-          onComplete,
-        });
-      },
+      onComplete: fall,
     });
   }
 }
