@@ -178,8 +178,9 @@ export class GameScene extends Phaser.Scene {
       this.die();
       return;
     }
-    // 即死: 落下(ピット等で完全に画面下へ落ちた)。飛び上がり演出はしない
-    if (this.player.y > this.worldHeight) {
+    // 即死: 落下。頭(スプライト上端)まで完全に可視領域の下へ出てから判定する。
+    // それまでは自由落下させ、落下死では死亡演出(飛び上がり/停止)を行わない。
+    if (this.player.sprite.getBounds().top > this.cameras.main.scrollY + GAME_HEIGHT) {
       this.die(true);
       return;
     }
