@@ -178,9 +178,10 @@ export class GameScene extends Phaser.Scene {
       this.die();
       return;
     }
-    // 即死: 落下
-    if (this.player.y > this.worldHeight) {
-      this.die();
+    // 即死: 落下。頭(スプライト上端)まで完全に可視領域の下へ出てから判定する。
+    // それまでは自由落下させ、落下死では死亡演出(飛び上がり/停止)を行わない。
+    if (this.player.sprite.getBounds().top > this.cameras.main.scrollY + GAME_HEIGHT) {
+      this.die(true);
       return;
     }
     // ゴール
@@ -240,25 +241,28 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private die(): void {
+  // byFall=true は落下死(既に画面下へ落ちて隠れた状態)。この場合は飛び上がり演出を省く。
+  private die(byFall = false): void {
     if (this.isEnded) return;
     this.isEnded = true;
     this.physics.pause(); // 敵の歩行を止める(プレイヤーの死亡演出は tween で行う)
     this.bgm?.stop(); // ゲームオーバーで BGM 停止
     this.sound.play('se_damaged', { volume: SE_VOLUME }); // ダメージSE(単発)
     this.cameras.main.stopFollow();
-    // 死亡ポーズ→落下の演出後にゲームオーバー画面。リトライはチェックポイント(ゲート/スタート)から
-    this.player.playDeath(() =>
-      showGameOver(this, {
-        onRetry: () =>
-          this.scene.restart({
-            stageIndex: this.stageIndex,
-            resumeX: this.checkpointX,
-            resumeY: this.checkpointY,
-            usedGate: this.usedGate,
-          }),
-        onSelect: () => this.scene.start('StageSelect'),
-      }),
+    // 死亡演出後にゲームオーバー画面。リトライはチェックポイント(ゲート/スタート)から
+    this.player.playDeath(
+      () =>
+        showGameOver(this, {
+          onRetry: () =>
+            this.scene.restart({
+              stageIndex: this.stageIndex,
+              resumeX: this.checkpointX,
+              resumeY: this.checkpointY,
+              usedGate: this.usedGate,
+            }),
+          onSelect: () => this.scene.start('StageSelect'),
+        }),
+      byFall,
     );
   }
 
