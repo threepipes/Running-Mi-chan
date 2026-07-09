@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { STAGES } from '../game/stages';
+import { AUDIO_KEY } from '../config';
+import { xorBytes } from '../game/audio/descramble';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -27,16 +29,29 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('player', 'assets/player.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('kuri', 'assets/kuri.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('spring', 'assets/jump.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.audio('bgm', 'assets/running.mp3');
-    this.load.audio('se_damaged', 'assets/damaged.mp3');
-    this.load.audio('se_jump', 'assets/jump.mp3');
-    this.load.audio('se_clear', 'assets/clear.mp3');
+    this.load.binary('bgm_enc', 'assets/running.dat');
+    this.load.binary('se_damaged_enc', 'assets/damaged.dat');
+    this.load.binary('se_jump_enc', 'assets/jump.dat');
+    this.load.binary('se_clear_enc', 'assets/clear.dat');
     for (const stage of STAGES) {
       this.load.binary(stage.mapKey, stage.mapFile);
       this.load.text(stage.eventKey, stage.eventFile);
     }
   }
   create(): void {
-    this.scene.start('Title');
+    const pairs: { srcKey: string; dstKey: string }[] = [
+      { srcKey: 'bgm_enc', dstKey: 'bgm' },
+      { srcKey: 'se_damaged_enc', dstKey: 'se_damaged' },
+      { srcKey: 'se_jump_enc', dstKey: 'se_jump' },
+      { srcKey: 'se_clear_enc', dstKey: 'se_clear' },
+    ];
+    const decodeList = pairs.map(({ srcKey, dstKey }) => {
+      const enc = new Uint8Array(this.cache.binary.get(srcKey) as ArrayBuffer);
+      const data = xorBytes(enc, AUDIO_KEY);
+      return { key: dstKey, data: data.buffer as ArrayBuffer };
+    });
+
+    this.sound.once(Phaser.Sound.Events.DECODED_ALL, () => this.scene.start('Title'));
+    (this.sound as Phaser.Sound.WebAudioSoundManager).decodeAudio(decodeList);
   }
 }
