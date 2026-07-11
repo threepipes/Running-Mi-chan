@@ -30,8 +30,12 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('kuri', 'assets/kuri.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('spring', 'assets/jump.png', { frameWidth: 32, frameHeight: 32 });
     this.load.binary('bgm_enc', 'assets/running.dat');
+    this.load.binary('bgm_stage2_enc', 'assets/stage2.dat');
+    this.load.binary('bgm_stage3_enc', 'assets/stage3.dat');
+    this.load.binary('bgm_opening_enc', 'assets/opening.dat');
     this.load.binary('se_damaged_enc', 'assets/damaged.dat');
     this.load.binary('se_jump_enc', 'assets/jump.dat');
+    this.load.binary('se_spring_enc', 'assets/jump-l.dat');
     this.load.binary('se_clear_enc', 'assets/clear.dat');
     for (const stage of STAGES) {
       this.load.binary(stage.mapKey, stage.mapFile);
@@ -41,8 +45,12 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     const pairs: { srcKey: string; dstKey: string }[] = [
       { srcKey: 'bgm_enc', dstKey: 'bgm' },
+      { srcKey: 'bgm_stage2_enc', dstKey: 'bgm_stage2' },
+      { srcKey: 'bgm_stage3_enc', dstKey: 'bgm_stage3' },
+      { srcKey: 'bgm_opening_enc', dstKey: 'bgm_opening' },
       { srcKey: 'se_damaged_enc', dstKey: 'se_damaged' },
       { srcKey: 'se_jump_enc', dstKey: 'se_jump' },
+      { srcKey: 'se_spring_enc', dstKey: 'se_spring' },
       { srcKey: 'se_clear_enc', dstKey: 'se_clear' },
     ];
     const decodeList = pairs.map(({ srcKey, dstKey }) => {

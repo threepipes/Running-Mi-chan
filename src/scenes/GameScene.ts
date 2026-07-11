@@ -130,7 +130,9 @@ export class GameScene extends Phaser.Scene {
 
     // BGM: ゲームプレイ中はループ再生。ポーズで一時停止、クリア/オーバーで停止する。
     // シーン終了(タイトル/ステージ選択への遷移・リスタート)時は破棄して鳴り続け/多重再生を防ぐ。
-    this.bgm = this.sound.add('bgm', { loop: true, volume: BGM_VOLUME });
+    // ステージごとに専用BGM(1=running, 2=stage2, 3=stage3)。
+    const bgmKey = ['bgm', 'bgm_stage2', 'bgm_stage3'][this.stageIndex] ?? 'bgm';
+    this.bgm = this.sound.add(bgmKey, { loop: true, volume: BGM_VOLUME });
     this.bgm.play();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.bgm?.destroy();
@@ -155,9 +157,14 @@ export class GameScene extends Phaser.Scene {
     });
     this.physics.add.overlap(this.player.sprite, this.springs, (_p, s) => {
       if (this.isEnded) return;
+      const spring = s as Phaser.Physics.Arcade.Sprite;
+      // overlap は接触中に複数フレーム発火する。アニメ再生中は跳ね上げ済みとみなし、
+      // 二重の bounce/SE を防ぐ(SE の多重再生対策も兼ねる)。
+      if (spring.anims.isPlaying) return;
       this.player.bounce(SPRING_VELOCITY);
-      // 踏んだバネをアニメ(1→2→3で停止)。true=再生中は再スタートしない(overlap多重発火対策)
-      (s as Phaser.Physics.Arcade.Sprite).anims.play('spring-bounce', true);
+      this.sound.play('se_spring', { volume: SE_VOLUME }); // ジャンプ台SE(単発)
+      // 踏んだバネをアニメ(1→2→3で停止)
+      spring.anims.play('spring-bounce', true);
     });
     this.physics.add.overlap(this.player.sprite, this.gates, (_p, g) => {
       const gate = g as Phaser.Physics.Arcade.Sprite;

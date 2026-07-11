@@ -4,6 +4,7 @@ import { STAGES, type StageDef } from '../game/stages';
 import { loadProgress } from '../game/Progress';
 import { parseEvents } from '../game/loaders/EventLoader';
 import { createImageButton } from '../ui/button';
+import { playOpeningBgm, stopOpeningBgm } from '../game/audio/openingBgm';
 
 export class StageSelectScene extends Phaser.Scene {
   // デバッグ(ローカル開発時のみ): ON でステージを中間地点(ゲート)から開始する
@@ -13,6 +14,9 @@ export class StageSelectScene extends Phaser.Scene {
     super('StageSelect');
   }
   create(): void {
+    // タイトルから継続再生しているオープニングBGMを維持(戻ってきた場合は再開)
+    playOpeningBgm(this);
+
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
     this.add
       .text(GAME_WIDTH / 2, 120, 'ステージ選択', { color: '#ffffff', fontSize: '40px' })
@@ -75,6 +79,8 @@ export class StageSelectScene extends Phaser.Scene {
 
   // ステージ開始。デバッグトグル ON かつゲートがあれば中間地点から、それ以外は先頭から開始。
   private startStage(stage: StageDef): void {
+    // ゲームプレイ中はステージ専用BGMに切り替えるため、オープニングBGMを止める
+    stopOpeningBgm(this);
     if (import.meta.env.DEV && this.startFromGate) {
       const gate = this.findGateSpawn(stage);
       if (gate) {
