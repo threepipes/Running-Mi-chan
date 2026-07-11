@@ -39,4 +39,11 @@ export function registerAnims(scene: Phaser.Scene): void {
     frameRate: 30,
     repeat: 0,
   });
+  // ラジオの音符(music.png 2フレーム)。各0.5秒でループ(原作: 30tick/frame @60fps)。
+  scene.anims.create({
+    key: 'music-note',
+    frames: scene.anims.generateFrameNumbers('music', { frames: [0, 1] }),
+    frameRate: 2,
+    repeat: -1,
+  });
 }
