@@ -23,6 +23,9 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Phaser はシーンインスタンスを再利用するため、再入(タイトルへ戻る)時に必ずリセットする。
+    // これを怠ると2回目以降スタートが発火しない(ソフトロック)。
+    this.started = false;
     registerAnims(this);
 
     this.add.image(0, 0, 'title').setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
