@@ -29,8 +29,7 @@ export function createImageButton(opts: ImageButtonOptions): Phaser.GameObjects.
   if (label) {
     const text = scene.add
       .text(0, 0, label, { color: '#ffffff', fontSize })
-      .setOrigin(0.5)
-      .setName('label'); // 呼び出し側が container.getByName('label') で参照/更新できるように
+      .setOrigin(0.5);
     parts.push(text);
   }
 
