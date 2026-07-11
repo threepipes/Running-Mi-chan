@@ -31,3 +31,6 @@ export const BGM_VOLUME = 0.7;
 
 // 効果音(SE)の音量(0.0〜1.0)
 export const SE_VOLUME = 0.3;
+
+// アセット読み込み用のキー(ASCII)。
+export const AUDIO_KEY = 'mi-chan-run-2026-audio-xor-key';
