@@ -29,7 +29,7 @@ export class TitleScene extends Phaser.Scene {
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.3, 'title_logo').setOrigin(0.5);
 
     // みーちゃん(寝ポーズで待機)
-    this.add.image(PLAYER_X, PLAYER_Y, 'player', SLEEP_FRAME).setOrigin(0, 0);
+    const player = this.add.sprite(PLAYER_X, PLAYER_Y, 'player', SLEEP_FRAME).setOrigin(0, 0);
 
     // ラジオの音符(サウンドONのときだけ表示・アニメ)
     const note = this.add.sprite(NOTE_X, NOTE_Y, 'music', 0).setOrigin(0, 0);
@@ -46,8 +46,7 @@ export class TitleScene extends Phaser.Scene {
       note.setVisible(on);
     });
 
-    // スタート(この段階では即遷移。開始シーケンスは Task 4 で差し替え)
-    const go = () => this.scene.start('StageSelect');
+    // スタート
     createImageButton({
       scene: this,
       x: GAME_WIDTH / 2,
@@ -55,8 +54,51 @@ export class TitleScene extends Phaser.Scene {
       texture: 'button_large',
       pressedTexture: 'button_large_pressed',
       label: 'スタート',
-      onClick: go,
+      onClick: () => this.startSequence(player),
     });
-    this.input.keyboard!.once('keydown', go);
+    this.input.keyboard!.once('keydown', () => this.startSequence(player));
+  }
+
+  private started = false;
+
+  private startSequence(player: Phaser.GameObjects.Sprite): void {
+    if (this.started) return;
+    this.started = true;
+    this.input.keyboard!.removeAllListeners('keydown');
+
+    const groundY = player.y;
+    // 起きる
+    player.setFrame(13);
+    this.time.delayedCall(333, () => {
+      // ジャンプ(+SE。muteならPhaserが自動で無音)
+      player.setFrame(12);
+      this.sound.play('se_jump');
+      this.tweens.add({
+        targets: player,
+        y: groundY - 70,
+        duration: 220,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+        onComplete: () => {
+          // 着地
+          player.setFrame(5);
+          this.time.delayedCall(167, () => {
+            // 右向き
+            player.setFrame(6);
+            this.time.delayedCall(333, () => {
+              // 走り出し → 画面外
+              player.play('run');
+              this.tweens.add({
+                targets: player,
+                x: GAME_WIDTH + 40,
+                duration: 1500,
+                ease: 'Linear',
+                onComplete: () => this.scene.start('StageSelect'),
+              });
+            });
+          });
+        },
+      });
+    });
   }
 }
