@@ -22,6 +22,10 @@ const game = new Phaser.Game({
   scene: [BootScene, TitleScene, StageSelectScene, GameScene],
 });
 
+// サウンドは既定 OFF(ミュート)。ブラウザは初回タップ前に音を鳴らせないため、
+// 既定OFFにしてタイトルで手動ONにする。master(BGM/SE一括)。
+game.sound.mute = true;
+
 // 実表示領域(visualViewport)を実測して #game に反映し、Phaser の FIT を再計算する。
 // モバイルのアドレスバー分でズレる 100vh/dvh を実測で補正し、黒帯+下はみ出しを防ぐ。
 const gameEl = document.getElementById('game');
