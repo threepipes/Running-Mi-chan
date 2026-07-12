@@ -6,7 +6,10 @@ import {
   JUMP_VELOCITY,
   SPRING_VELOCITY,
   BGM_VOLUME,
-  SE_VOLUME,
+  SE_SPRING_VOLUME,
+  SE_DAMAGED_VOLUME,
+  SE_CLEAR_VOLUME,
+  seVolume,
   ENEMY_SPEED,
 } from '../config';
 import { parseEvents } from '../game/loaders/EventLoader';
@@ -162,7 +165,7 @@ export class GameScene extends Phaser.Scene {
       // 二重の bounce/SE を防ぐ(SE の多重再生対策も兼ねる)。
       if (spring.anims.isPlaying) return;
       this.player.bounce(SPRING_VELOCITY);
-      this.sound.play('se_spring', { volume: SE_VOLUME }); // ジャンプ台SE(単発)
+      this.sound.play('se_spring', { volume: seVolume(SE_SPRING_VOLUME) }); // ジャンプ台SE(単発)
       // 踏んだバネをアニメ(1→2→3で停止)
       spring.anims.play('spring-bounce', true);
     });
@@ -255,7 +258,7 @@ export class GameScene extends Phaser.Scene {
     this.isEnded = true;
     this.physics.pause(); // 敵の歩行を止める(プレイヤーの死亡演出は tween で行う)
     this.bgm?.stop(); // ゲームオーバーで BGM 停止
-    this.sound.play('se_damaged', { volume: SE_VOLUME }); // ダメージSE(単発)
+    this.sound.play('se_damaged', { volume: seVolume(SE_DAMAGED_VOLUME) }); // ダメージSE(単発)
     this.cameras.main.stopFollow();
     // 死亡演出後にゲームオーバー画面。リトライはチェックポイント(ゲート/スタート)から
     this.player.playDeath(
@@ -278,7 +281,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isEnded) return;
     this.isEnded = true;
     this.bgm?.stop(); // ゴール(クリア)で BGM 停止(原作準拠)
-    this.clearSe = this.sound.add('se_clear', { volume: SE_VOLUME });
+    this.clearSe = this.sound.add('se_clear', { volume: seVolume(SE_CLEAR_VOLUME) });
     this.clearSe.play(); // クリアSE
     recordClear(this.stageIndex, !this.usedGate);
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, TILE_SIZE, SE_JUMP_VOLUME } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, TILE_SIZE, SE_JUMP_VOLUME, seVolume } from '../config';
 import { createImageButton } from '../ui/button';
 import { registerAnims } from '../game/anims';
 import { isSoundOn, toggleSound } from '../game/audio/soundSetting';
@@ -83,7 +83,7 @@ export class TitleScene extends Phaser.Scene {
     this.time.delayedCall(333, () => {
       // ジャンプ(+SE。muteならPhaserが自動で無音)。切り株から跳ね上がり、地面(GROUND_Y)に着地する。
       player.setFrame(12);
-      this.sound.play('se_jump', { volume: SE_JUMP_VOLUME });
+      this.sound.play('se_jump', { volume: seVolume(SE_JUMP_VOLUME) });
       const apexY = player.y - 80;
       this.tweens.add({
         targets: player,
