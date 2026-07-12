@@ -29,8 +29,18 @@ export const JUMP_BUFFER_MS = 120;
 // ゲームプレイ中の BGM 音量(0.0〜1.0)
 export const BGM_VOLUME = 0.7;
 
-// 効果音(SE)の音量(0.0〜1.0)
-export const SE_VOLUME = 0.3;
+// SE(効果音)のマスター音量。各SEの実効音量 = SE_MASTER_VOLUME * SE_xxx_VOLUME。
+// 全SEを一括で下げたいときはこれを 1.0 未満にする。
+export const SE_MASTER_VOLUME = 1.0;
+
+// 各SEの相対音量(0.0〜1.0)。マスターを掛けた値が実際の再生音量になる。
+export const SE_JUMP_VOLUME = 0.1; // ジャンプ(他より小さめ)
+export const SE_SPRING_VOLUME = 1.0; // 大ジャンプ(バネ)。音源が小さいので大きめ
+export const SE_DAMAGED_VOLUME = 0.5; // ダメージ
+export const SE_CLEAR_VOLUME = 0.5; // クリア
+
+/** SEの実効音量(マスター×相対)を返す。 */
+export const seVolume = (relative: number): number => SE_MASTER_VOLUME * relative;
 
 // アセット読み込み用のキー(ASCII)。
 export const AUDIO_KEY = 'mi-chan-run-2026-audio-xor-key';

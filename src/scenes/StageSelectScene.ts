@@ -5,6 +5,7 @@ import { loadProgress } from '../game/Progress';
 import { parseEvents } from '../game/loaders/EventLoader';
 import { createImageButton } from '../ui/button';
 import { playOpeningBgm, stopOpeningBgm } from '../game/audio/openingBgm';
+import { isSoundOn } from '../game/audio/soundSetting';
 
 export class StageSelectScene extends Phaser.Scene {
   // デバッグ(ローカル開発時のみ): ON でステージを中間地点(ゲート)から開始する
@@ -14,8 +15,8 @@ export class StageSelectScene extends Phaser.Scene {
     super('StageSelect');
   }
   create(): void {
-    // タイトルから継続再生しているオープニングBGMを維持(戻ってきた場合は再開)
-    playOpeningBgm(this);
+    // サウンドONならオープニングBGMを維持/再開(タイトルと同基準)
+    if (isSoundOn()) playOpeningBgm(this);
 
     this.add.image(0, 0, 'sky').setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
     this.add

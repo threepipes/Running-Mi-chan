@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, TILE_SIZE } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, TILE_SIZE, SE_JUMP_VOLUME, seVolume } from '../config';
 import { createImageButton } from '../ui/button';
 import { registerAnims } from '../game/anims';
 import { isSoundOn, toggleSound } from '../game/audio/soundSetting';
+import { playOpeningBgm } from '../game/audio/openingBgm';
 
 // 原作準拠の配置(540×960 座標系)。みーちゃんは切り株の上(PLAYER_Y)で寝て待機する。
 const PLAYER_X = 98;
@@ -31,6 +32,10 @@ export class TitleScene extends Phaser.Scene {
     // これを怠ると2回目以降スタートが発火しない(ソフトロック)。
     this.started = false;
     registerAnims(this);
+
+    // サウンドONならオープニングBGMを(再)開始する。ゲーム開始時に停止されるため、
+    // タイトルへ戻ってきた際もここで鳴らし直す(中断→タイトルで無音になる不具合の対策)。
+    if (isSoundOn()) playOpeningBgm(this);
 
     this.add.image(0, 0, 'title').setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
     this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.3, 'title_logo').setOrigin(0.5);
@@ -78,7 +83,7 @@ export class TitleScene extends Phaser.Scene {
     this.time.delayedCall(333, () => {
       // ジャンプ(+SE。muteならPhaserが自動で無音)。切り株から跳ね上がり、地面(GROUND_Y)に着地する。
       player.setFrame(12);
-      this.sound.play('se_jump');
+      this.sound.play('se_jump', { volume: seVolume(SE_JUMP_VOLUME) });
       const apexY = player.y - 80;
       this.tweens.add({
         targets: player,
