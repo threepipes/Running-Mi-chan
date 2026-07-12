@@ -90,9 +90,14 @@ export class PlayerController {
     // 接地中にバッファされたジャンプ入力があれば発火。押した瞬間に接地していれば
     // 即ジャンプ、着地直前に押していた場合は着地したフレームでジャンプする。
     if (onGround && now <= this.jumpBufferedUntil) {
-      this.sprite.setVelocityY(-JUMP_VELOCITY);
+      // 同一フレームでバネ(bounce)が既にジャンプ以上の上向き速度を設定している場合は
+      // 普通ジャンプで上書きしない。overlap→bounce は player.update より先に走るため、
+      // ガードしないと大ジャンプが普通ジャンプに潰される。
+      if (body.velocity.y > -JUMP_VELOCITY) {
+        this.sprite.setVelocityY(-JUMP_VELOCITY);
+        this.scene.sound.play('se_jump', { volume: seVolume(SE_JUMP_VOLUME) }); // ジャンプSE(単発)
+      }
       this.jumpBufferedUntil = 0;
-      this.scene.sound.play('se_jump', { volume: seVolume(SE_JUMP_VOLUME) }); // ジャンプSE(単発)
     }
 
     this.sprite.anims.play(onGround ? 'run' : 'jump', true);
