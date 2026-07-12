@@ -36,7 +36,7 @@ export const SE_MASTER_VOLUME = 1.0;
 // 各SEの相対音量(0.0〜1.0)。マスターを掛けた値が実際の再生音量になる。
 export const SE_JUMP_VOLUME = 0.1; // ジャンプ(他より小さめ)
 export const SE_SPRING_VOLUME = 1.0; // 大ジャンプ(バネ)。音源が小さいので大きめ
-export const SE_DAMAGED_VOLUME = 0.5; // ダメージ
+export const SE_DAMAGED_VOLUME = 0.3; // ダメージ
 export const SE_CLEAR_VOLUME = 0.5; // クリア
 
 /** SEの実効音量(マスター×相対)を返す。 */
